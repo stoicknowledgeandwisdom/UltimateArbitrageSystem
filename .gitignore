@@ -1,0 +1,164 @@
+# Ultimate Arbitrage System - Comprehensive .gitignore
+
+# Sensitive Configuration Data
+**/config/*_config.json
+**/config/*_secrets.json
+**/config/credentials.json
+**/config/api_keys.json
+**/config/private_keys.json
+.env
+.env.*
+*.key
+*.pem
+secrets/
+
+# Exchange API Credentials
+**/exchanges/credentials/
+**/credentials/
+*api_key*
+*secret_key*
+*private_key*
+*passphrase*
+# Exchange-specific credentials
+*binance*credentials*
+*kucoin*credentials*
+*kraken*credentials*
+*bybit*credentials*
+*coinbase*credentials*
+*huobi*credentials*
+*gateio*credentials*
+
+# DEX & Wallet Credentials
+**/wallets/
+wallet.json
+*wallet_config*
+*mnemonic*
+*seed*
+# DEX-specific credentials
+*uniswap*config*
+*sushiswap*config*
+*pancakeswap*config*
+*quickswap*config*
+*curve*config*
+
+# Logs and Temporary Files
+logs/
+**/logs/
+*.log
+*.log.*
+log.txt
+.history/
+
+# Cached Data and Temporary Files
+.cache/
+cache/
+tmp/
+temp/
+.tmp/
+.temp/
+**/data/cache/
+**/__pycache__/
+
+# Python Bytecode
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# Distribution / Packaging
+dist/
+build/
+*.egg-info/
+*.egg
+develop-eggs/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+
+# Virtual Environments
+venv/
+env/
+ENV/
+.venv/
+.env/
+.virtualenv/
+virtualenv/
+
+# IDEs and Editors
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.project
+.pydevproject
+.settings/
+*.sublime-workspace
+*.sublime-project
+
+# OS Generated Files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+desktop.ini
+
+# Trading Data
+**/data/raw/
+**/backtest/results/
+**/historical_data/
+**/market_data/cache/
+**/order_book/snapshots/
+
+# AI Training Artifacts
+**/ai/checkpoints/
+**/ai/models/*.h5
+**/ai/models/*.pkl
+**/ai/models/*.pt
+**/ai/models/*.onnx
+**/ai/service_arbitrage/models/
+**/ai/training/history/
+**/ai/reinforcement_learning/checkpoints/
+**/ai/quantum/circuits/
+**/ai/experiments/
+
+# Database Files
+*.db
+*.sqlite
+*.sqlite3
+*.sql
+
+# Blockchain/Web3 Specific
+**/node_modules/
+**/.web3/
+**/artifacts/
+**/build/contracts/
+**/migrations/
+*etherscan*
+*infura*
+
+# Jupyter Notebooks (may contain sensitive info)
+.ipynb_checkpoints/
+*.ipynb
+
+# Crash Reports and Performance Data
+crash_reports/
+performance_logs/
+profiling_results/
+
+# Custom or user-specific files
+.custom_config
+user_settings.json
+personal_notes.md
+TODO.md
+

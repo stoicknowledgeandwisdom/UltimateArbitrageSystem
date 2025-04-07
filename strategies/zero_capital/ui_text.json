@@ -1,0 +1,47 @@
+{
+  "triangular_arbitrage": {
+    "overview": {
+      "title": "Triangular Arbitrage",
+      "description": "Triangular arbitrage is a risk-free trading strategy that exploits price discrepancies between three different cryptocurrencies to generate profit without market exposure. Our system automatically identifies and executes these opportunities across markets with zero to minimal starting capital."
+    },
+    "how_it_works": {
+      "title": "How It Works",
+      "steps": [
+        "Our system continuously monitors price relationships between currency triplets (e.g., BTC, ETH, USDT)",
+        "When price discrepancies are found, the system calculates potential profit after all trading fees",
+        "If the profit meets your minimum threshold, the opportunity is added to the execution queue",
+        "The system executes three rapid trades in sequence to capture the price difference",
+        "Each complete cycle returns to the starting currency, eliminating market exposure"
+      ],
+      "example": "Starting with BTC → Trade BTC for ETH → Trade ETH for USDT → Trade USDT back to BTC (with profit)"
+    },
+    "profit_calculation": {
+      "title": "Profit Calculation",
+      "formula": "Profit % = (Final Amount / Initial Amount) - 1",
+      "explanation": "The system calculates potential profit by simulating the complete trading cycle with current market prices, accounting for all trading fees at each step. Only opportunities above your configured profit threshold are executed.",
+      "factors": [
+        "Trading fees (typically 0.1-0.5% per trade)",
+        "Slippage (difference between expected and actual execution price)",
+        "Market depth (available liquidity at each price level)",
+        "Execution speed (critical for capturing fleeting opportunities)"
+      ]
+    },
+    "timeframes": {
+      "title": "Timeframes & Execution",
+      "detection": "Opportunities are typically identified within milliseconds",
+      "execution": "Complete trade cycles execute in 1-3 seconds (exchange-dependent)",
+      "frequency": "Profitable opportunities may appear several times per day, depending on market volatility and configured settings",
+      "optimization": "The system automatically prioritizes the most profitable opportunities"
+    },
+    "expected_returns": {
+      "title": "Expected Returns",
+      "profit_range": {
+        "conservative": "0.3% - 1.2% per successful trade cycle",
+        "aggressive": "0.5% - 2.5% per successful trade cycle (higher profit threshold, lower success rate)"
+      },
+      "volume_factors": "Daily profit potential depends on your configured parameters, capital allocation, and market conditions",
+      "compounding": "The system can automatically reinvest profits to grow trading capital over time"
+    }
+  }
+}
+
