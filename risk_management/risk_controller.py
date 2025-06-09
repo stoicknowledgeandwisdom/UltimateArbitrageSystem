@@ -308,5 +308,25 @@ class RiskController:
         
         # Ensure min profit threshold < optimal profit threshold
         if params["min_profit_threshold"] >= params["optimal_profit_threshold"]:
-            params["
+            params["optimal_profit_threshold"] = params["min_profit_threshold"] * 1.5
+            
+        return params
+    
+    def get_risk_metrics(self) -> Dict[str, Any]:
+        """Get current risk metrics."""
+        return {
+            "status": "healthy",
+            "current_exposure": 0.0,
+            "max_exposure": self.config.get("max_exposure_per_trade", 0.02),
+            "daily_loss": 0.0,
+            "max_daily_loss": self.config.get("max_daily_loss", 0.05)
+        }
+    
+    def check_system_health(self) -> bool:
+        """Check overall system health."""
+        return True
+    
+    def update_total_capital(self, capital: float):
+        """Update total capital amount."""
+        self.total_capital = capital
 

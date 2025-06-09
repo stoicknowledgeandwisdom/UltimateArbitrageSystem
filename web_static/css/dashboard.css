@@ -1,0 +1,84 @@
+
+:root {
+    --primary-color: #007bff;
+    --success-color: #28a745;
+    --warning-color: #ffc107;
+    --danger-color: #dc3545;
+    --purple-color: #6f42c1;
+}
+
+.bg-purple {
+    background-color: var(--purple-color) !important;
+}
+
+body {
+    background-color: #f8f9fa;
+}
+
+.card {
+    border: none;
+    border-radius: 10px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    transition: transform 0.2s;
+}
+
+.card:hover {
+    transform: translateY(-2px);
+}
+
+.opportunity-high {
+    border-left: 4px solid var(--success-color);
+}
+
+.opportunity-medium {
+    border-left: 4px solid var(--warning-color);
+}
+
+.opportunity-low {
+    border-left: 4px solid var(--danger-color);
+}
+
+.pulse {
+    animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+    0% { opacity: 1; }
+    50% { opacity: 0.7; }
+    100% { opacity: 1; }
+}
+
+.profit-positive {
+    color: var(--success-color);
+    font-weight: bold;
+}
+
+.profit-negative {
+    color: var(--danger-color);
+    font-weight: bold;
+}
+
+.status-online {
+    background-color: var(--success-color);
+}
+
+.status-offline {
+    background-color: var(--danger-color);
+}
+
+.wallet-card {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border-radius: 10px;
+    padding: 15px;
+    margin-bottom: 10px;
+}
+
+.strategy-card {
+    background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+    color: white;
+    border-radius: 10px;
+    padding: 15px;
+    margin-bottom: 10px;
+}
+        

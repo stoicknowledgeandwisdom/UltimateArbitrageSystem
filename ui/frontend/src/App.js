@@ -17,6 +17,7 @@ import TradingView from './pages/TradingView';
 import Strategies from './pages/Strategies';
 import Settings from './pages/Settings';
 import ArbitrageOpportunities from './pages/ArbitrageOpportunities';
+import AutomatedIncomeCalculator from './pages/AutomatedIncomeCalculator';
 import NotFound from './pages/NotFound';
 
 // Error Boundary Component
@@ -127,6 +128,7 @@ function App() {
                 <Route path="/trading" element={<TradingView />} />
                 <Route path="/strategies" element={<Strategies />} />
                 <Route path="/arbitrage-opportunities" element={<ArbitrageOpportunities />} />
+                <Route path="/income-calculator" element={<AutomatedIncomeCalculator />} />
                 <Route path="/settings" element={<Settings />} />
                 <Route path="*" element={<NotFound />} />
               </Routes>

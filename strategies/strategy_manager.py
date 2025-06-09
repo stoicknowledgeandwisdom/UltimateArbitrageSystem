@@ -405,5 +405,5 @@ class StrategyMetrics:
         # Find the best performing hours
         if self.hourly_performance:
             best_hours = sorted(self.hourly_performance.items(), key=lambda x: x[1], reverse=True)
-            recommendations["optimal_hours"] = [hour for hour, _ in best_hours[:3
+            recommendations["optimal_hours"] = [hour for hour, _ in best_hours[:3]]
 

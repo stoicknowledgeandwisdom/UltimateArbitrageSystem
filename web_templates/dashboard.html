@@ -1,0 +1,295 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ultimate Arbitrage System - Dashboard</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="/static/css/dashboard.css" rel="stylesheet">
+</head>
+<body>
+    <div id="app">
+        <!-- Header -->
+        <nav class="navbar navbar-dark bg-dark">
+            <div class="container-fluid">
+                <span class="navbar-brand h1">
+                    <i class="fas fa-rocket"></i> Ultimate Arbitrage System
+                </span>
+                <div class="d-flex">
+                    <button id="startSystemBtn" class="btn btn-success me-2">
+                        <i class="fas fa-play"></i> Start System
+                    </button>
+                    <button id="stopSystemBtn" class="btn btn-danger me-2" disabled>
+                        <i class="fas fa-stop"></i> Stop System
+                    </button>
+                    <span id="systemStatus" class="badge bg-secondary">Offline</span>
+                </div>
+            </div>
+        </nav>
+
+        <div class="container-fluid mt-4">
+            <!-- Quick Setup Section -->
+            <div class="row mb-4">
+                <div class="col-12">
+                    <div class="card bg-primary text-white">
+                        <div class="card-body">
+                            <h4 class="card-title"><i class="fas fa-rocket"></i> Quick Start - Get Your Automated Income Running!</h4>
+                            <p class="card-text">Connect your wallet and start earning with just a few clicks. Our quantum-enhanced AI will handle everything automatically.</p>
+                            <div class="row">
+                                <div class="col-md-4">
+                                    <button class="btn btn-light btn-lg w-100 mb-2" onclick="showWalletModal()">
+                                        <i class="fas fa-wallet"></i> 1. Connect Wallet
+                                    </button>
+                                </div>
+                                <div class="col-md-4">
+                                    <button class="btn btn-light btn-lg w-100 mb-2" onclick="deployDefaultStrategies()">
+                                        <i class="fas fa-magic"></i> 2. Deploy Strategies
+                                    </button>
+                                </div>
+                                <div class="col-md-4">
+                                    <button class="btn btn-warning btn-lg w-100 mb-2" onclick="startEarning()">
+                                        <i class="fas fa-play-circle"></i> 3. Start Earning!
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Performance Metrics -->
+            <div class="row mb-4">
+                <div class="col-md-3">
+                    <div class="card text-white bg-success">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between">
+                                <div>
+                                    <h6 class="card-title">Total Profit</h6>
+                                    <h3 id="totalProfit">$0.00</h3>
+                                </div>
+                                <div class="align-self-center">
+                                    <i class="fas fa-dollar-sign fa-2x"></i>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card text-white bg-info">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between">
+                                <div>
+                                    <h6 class="card-title">Win Rate</h6>
+                                    <h3 id="winRate">0%</h3>
+                                </div>
+                                <div class="align-self-center">
+                                    <i class="fas fa-chart-line fa-2x"></i>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card text-white bg-warning">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between">
+                                <div>
+                                    <h6 class="card-title">Active Opportunities</h6>
+                                    <h3 id="activeOpportunities">0</h3>
+                                </div>
+                                <div class="align-self-center">
+                                    <i class="fas fa-bolt fa-2x"></i>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card text-white bg-purple">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between">
+                                <div>
+                                    <h6 class="card-title">Quantum Advantage</h6>
+                                    <h3 id="quantumAdvantage">1.0x</h3>
+                                </div>
+                                <div class="align-self-center">
+                                    <i class="fas fa-atom fa-2x"></i>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Performance Chart -->
+            <div class="row mb-4">
+                <div class="col-12">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5><i class="fas fa-chart-area"></i> Performance Analytics</h5>
+                        </div>
+                        <div class="card-body">
+                            <canvas id="performanceChart" width="400" height="100"></canvas>
+                            <p class="text-muted mt-2"><small>Real-time profit tracking updated every minute</small></p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Live Opportunities -->
+            <div class="row mb-4">
+                <div class="col-12">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5><i class="fas fa-eye"></i> Live Arbitrage Opportunities</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="table-responsive">
+                                <table class="table table-hover">
+                                    <thead>
+                                        <tr>
+                                            <th>Type</th>
+                                            <th>Profit Potential</th>
+                                            <th>Confidence</th>
+                                            <th>Risk</th>
+                                            <th>Status</th>
+                                            <th>Action</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="opportunitiesTable">
+                                        <tr>
+                                            <td colspan="6" class="text-center text-muted">No opportunities detected yet. Start the system to begin monitoring.</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Wallet and Strategy Management -->
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5><i class="fas fa-wallet"></i> Connected Wallets</h5>
+                        </div>
+                        <div class="card-body">
+                            <div id="walletsList">
+                                <p class="text-muted">No wallets connected. Click "Connect Wallet" to get started.</p>
+                            </div>
+                            <button class="btn btn-primary" onclick="showWalletModal()">
+                                <i class="fas fa-plus"></i> Add Wallet
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5><i class="fas fa-cogs"></i> Active Strategies</h5>
+                        </div>
+                        <div class="card-body">
+                            <div id="strategiesList">
+                                <p class="text-muted">No strategies deployed. Deploy strategies to start earning.</p>
+                            </div>
+                            <button class="btn btn-success" onclick="showStrategyModal()">
+                                <i class="fas fa-rocket"></i> Deploy Strategy
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Wallet Connection Modal -->
+    <div class="modal fade" id="walletModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Connect Wallet</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="walletForm">
+                        <div class="mb-3">
+                            <label for="walletId" class="form-label">Wallet Name/ID</label>
+                            <input type="text" class="form-control" id="walletId" placeholder="My Trading Wallet" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="privateKey" class="form-label">Private Key</label>
+                            <input type="password" class="form-control" id="privateKey" placeholder="Enter your private key" required>
+                            <div class="form-text">Your private key is stored securely and never transmitted.</div>
+                        </div>
+                        <div class="mb-3">
+                            <label for="network" class="form-label">Network</label>
+                            <select class="form-select" id="network">
+                                <option value="ethereum">Ethereum</option>
+                                <option value="bsc">Binance Smart Chain</option>
+                                <option value="polygon">Polygon</option>
+                                <option value="arbitrum">Arbitrum</option>
+                                <option value="avalanche">Avalanche</option>
+                            </select>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-primary" onclick="connectWallet()">Connect Wallet</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Strategy Deployment Modal -->
+    <div class="modal fade" id="strategyModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Deploy Trading Strategy</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="strategyForm">
+                        <div class="mb-3">
+                            <label for="strategyType" class="form-label">Strategy Type</label>
+                            <select class="form-select" id="strategyType">
+                                <option value="quantum_arbitrage">Quantum Arbitrage (Recommended)</option>
+                                <option value="cross_chain">Cross-Chain Arbitrage</option>
+                                <option value="triangular">Triangular Arbitrage</option>
+                                <option value="statistical">Statistical Arbitrage</option>
+                                <option value="defi_yield">DeFi Yield Farming</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label for="strategyWallet" class="form-label">Wallet</label>
+                            <select class="form-select" id="strategyWallet">
+                                <option value="">Select a wallet...</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label for="capitalAmount" class="form-label">Capital Amount (USD)</label>
+                            <input type="number" class="form-control" id="capitalAmount" placeholder="1000" min="0" step="0.01">
+                            <div class="form-text">Amount of capital to allocate to this strategy.</div>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-success" onclick="deployStrategy()">Deploy Strategy</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.0/socket.io.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="/static/js/dashboard.js"></script>
+</body>
+</html>
+        

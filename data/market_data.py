@@ -398,5 +398,320 @@ class HyperCache:
                 self.stats["total_bytes_saved"] += (original_size - len(compressed_data))
         
         # Store in Redis if available (Level 2)
-        if
+        # Store in Redis if available (Level 2)
+        if self.redis_client:
+            try:
+                redis_key = f"market_data:{key}"
+                cache_entry = {
+                    'timestamp': timestamp,
+                    'compression': self.compression_level,
+                    'data': compressed_data
+                }
+                # Store with TTL (add 10% buffer to TTL)
+                self.redis_client.setex(
+                    redis_key,
+                    int(ttl * 1.1),
+                    json.dumps(cache_entry)
+                )
+            except Exception as e:
+                logger.warning(f"Redis cache storage error: {e}")
+        
+        # Store in disk cache (Level 3)
+        try:
+            file_path = os.path.join(self.cache_dir, f"{key}.cache")
+            with open(file_path, 'wb') as f:
+                # Write a header with compression info and original size
+                f.write(self.compression_level.to_bytes(4, byteorder='little'))
+                f.write(original_size.to_bytes(4, byteorder='little'))
+                
+                # Write the compressed data
+                f.write(compressed_data)
+        except Exception as e:
+            logger.warning(f"Disk cache storage error for {key}: {e}")
+            return False
+            
+        return True
+    
+    def invalidate(self, data_type, exchange_id, symbol, timeframe=None, extra=None):
+        """Invalidate cached data."""
+        key = self._generate_key(data_type, exchange_id, symbol, timeframe, extra)
+        
+        with self.lock:
+            # Remove from memory cache
+            if key in self.memory_cache:
+                self._remove_from_memory_cache(key)
+        
+        # Remove from Redis
+        if self.redis_client:
+            try:
+                redis_key = f"market_data:{key}"
+                self.redis_client.delete(redis_key)
+            except Exception as e:
+                logger.warning(f"Redis invalidation error: {e}")
+        
+        # Remove from disk
+        try:
+            file_path = os.path.join(self.cache_dir, f"{key}.cache")
+            if os.path.exists(file_path):
+                os.remove(file_path)
+        except Exception as e:
+            logger.warning(f"Disk cache invalidation error: {e}")
+    
+    def _store_in_memory(self, key, data):
+        """Store data in memory cache with eviction policy."""
+        # Estimate the data size
+        data_size = len(pickle.dumps(data))
+        
+        # Check if we need to evict entries to make space
+        if self.memory_usage + data_size > self.memory_limit:
+            self._evict_entries(data_size)
+        
+        # Store the data
+        self.memory_cache[key] = {
+            'data': data,
+            'timestamp': time.time(),
+            'size': data_size
+        }
+        self.memory_usage += data_size
+        
+        # Move to the end of OrderedDict to mark as recently used
+        self.memory_cache.move_to_end(key)
+    
+    def _remove_from_memory_cache(self, key):
+        """Remove an item from the memory cache."""
+        if key in self.memory_cache:
+            data_size = self.memory_cache[key]['size']
+            del self.memory_cache[key]
+            self.memory_usage -= data_size
+            self.stats["evictions"]["memory"] += 1
+    
+    def _evict_entries(self, required_space):
+        """Evict entries to free up required space using smart eviction policy."""
+        # Calculate predictive scores for all entries
+        for key in list(self.memory_cache.keys()):
+            self._update_predictive_score(key, update_only=True)
+        
+        # Sort keys by predictive score (lower is more evictable)
+        eviction_candidates = sorted(
+            self.memory_cache.keys(),
+            key=lambda k: self.predictive_score.get(k, 0)
+        )
+        
+        # Evict entries until we free up enough space
+        space_freed = 0
+        for key in eviction_candidates:
+            if key in self.memory_cache:  # May have been removed in previous iteration
+                data_size = self.memory_cache[key]['size']
+                space_freed += data_size
+                self._remove_from_memory_cache(key)
+                logger.debug(f"Evicted cache entry {key}, freed {data_size} bytes")
+                
+                if space_freed >= required_space:
+                    break
+    
+    def _update_predictive_score(self, key, hit=None, update_only=False):
+        """Update the predictive score for an entry to guide eviction decisions."""
+        # Factors to consider:
+        # 1. Access frequency (higher is better)
+        # 2. Access recency (more recent is better)
+        # 3. Hit/miss pattern (more hits is better)
+        
+        if not update_only and hit is not None:
+            # Record hit/miss
+            if key not in self.predictive_score:
+                self.predictive_score[key] = 0.5  # Initialize
+                
+            # Update score with exponential moving average
+            current_score = self.predictive_score[key]
+            hit_value = 1.0 if hit else 0.0
+            self.predictive_score[key] = 0.8 * current_score + 0.2 * hit_value
+        
+        # Always update based on recency and frequency
+        frequency_factor = min(1.0, math.log1p(self.access_frequency.get(key, 0)) / 10)
+        
+        recency_factor = 0.0
+        if key in self.access_recency:
+            # Normalize recency to a 0-1 scale where 1 is most recent
+            age_seconds = time.time() - self.access_recency[key]
+            recency_factor = max(0.0, min(1.0, 1.0 - (age_seconds / 3600)))  # 1-hour scale
+        
+        # Final score combines all factors
+        final_score = (
+            0.4 * self.predictive_score.get(key, 0.0) +  # Hit/miss history
+            0.3 * frequency_factor +                     # Access frequency
+            0.3 * recency_factor                         # Recency
+        )
+        
+        self.predictive_score[key] = final_score
+    
+    def _prefetch_worker(self):
+        """Background worker for predictive prefetching."""
+        while self.running:
+            try:
+                # Sleep to avoid CPU hogging
+                time.sleep(0.1)
+                
+                # Process prefetch queue
+                with self.prefetch_lock:
+                    if not self.prefetch_queue:
+                        continue
+                        
+                    # Get the highest priority item
+                    priority, prefetch_fn = heapq.heappop(self.prefetch_queue)
+                    
+                # Execute the prefetch function
+                prefetch_fn()
+                    
+            except Exception as e:
+                logger.error(f"Error in prefetch worker: {e}")
+                
+    def prefetch(self, data_type, exchange_id, symbol, timeframe=None, extra=None, priority=0):
+        """
+        Queue a prefetch operation with the given priority.
+        
+        Args:
+            data_type: Type of data to prefetch
+            exchange_id: Exchange identifier
+            symbol: Trading symbol
+            timeframe: Optional timeframe
+            extra: Additional key parameters
+            priority: Priority (lower number = higher priority)
+        """
+        # Create a prefetch function to be executed by the worker
+        def _prefetch_fn():
+            try:
+                # Generate the key
+                key = self._generate_key(data_type, exchange_id, symbol, timeframe, extra)
+                
+                # Check if already in memory cache
+                with self.lock:
+                    if key in self.memory_cache:
+                        return
+                
+                # Try Redis and disk in sequence
+                if self.redis_client:
+                    try:
+                        redis_key = f"market_data:{key}"
+                        cached_data = self.redis_client.get(redis_key)
+                        
+                        if cached_data:
+                            try:
+                                cache_entry = json.loads(cached_data)
+                                ttl = self._get_ttl(data_type, timeframe)
+                                
+                                if time.time() - cache_entry['timestamp'] <= ttl:
+                                    # Valid data - decompress and store in memory
+                                    data = self._decompress_data(
+                                        cache_entry['data'], 
+                                        cache_entry.get('compression', self.COMPRESSION_NONE)
+                                    )
+                                    
+                                    if data is not None:
+                                        # Store in memory cache for future access
+                                        with self.lock:
+                                            self._store_in_memory(key, data)
+                                            logger.debug(f"Prefetched {key} from Redis")
+                                            return
+                            except Exception:
+                                pass
+                    except Exception:
+                        pass
+                
+                # Try disk cache
+                file_path = os.path.join(self.cache_dir, f"{key}.cache")
+                if os.path.exists(file_path):
+                    try:
+                        file_time = os.path.getmtime(file_path)
+                        ttl = self._get_ttl(data_type, timeframe)
+                        
+                        # Check if file is within TTL
+                        if time.time() - file_time <= ttl:
+                            with open(file_path, 'rb') as f:
+                                # Read the header
+                                header = f.read(8)
+                                compression = int.from_bytes(header[:4], byteorder='little')
+                                
+                                # Read the data
+                                data_bytes = f.read()
+                                
+                                # Decompress and store in memory
+                                data = self._decompress_data(data_bytes, compression)
+                                
+                                if data is not None:
+                                    with self.lock:
+                                        self._store_in_memory(key, data)
+                                        logger.debug(f"Prefetched {key} from disk")
+                    except Exception:
+                        pass
+            except Exception as e:
+                logger.error(f"Error in prefetch operation: {e}")
+        
+        # Add to prefetch queue with priority
+        with self.prefetch_lock:
+            heapq.heappush(self.prefetch_queue, (priority, _prefetch_fn))
+    
+    def get_stats(self):
+        """Get cache performance statistics."""
+        with self.lock:
+            total_hits = sum(self.stats["hits"].values())
+            total_misses = sum(self.stats["misses"].values())
+            total_requests = total_hits + total_misses
+            hit_rate = total_hits / max(1, total_requests) * 100
+            
+            compression_ratio = 0
+            if self.stats["total_bytes_cached"] > 0:
+                bytes_after_compression = self.stats["total_bytes_cached"] - self.stats["total_bytes_saved"]
+                compression_ratio = bytes_after_compression / self.stats["total_bytes_cached"]
+            
+            return {
+                "memory_usage": self.memory_usage,
+                "memory_limit": self.memory_limit,
+                "memory_utilization": self.memory_usage / max(1, self.memory_limit) * 100,
+                "items_in_memory": len(self.memory_cache),
+                "total_hits": total_hits,
+                "total_misses": total_misses,
+                "hit_rate_percent": hit_rate,
+                "total_bytes_cached": self.stats["total_bytes_cached"],
+                "total_bytes_saved": self.stats["total_bytes_saved"],
+                "compression_ratio": compression_ratio,
+                "hits_by_level": dict(self.stats["hits"]),
+                "misses_by_type": dict(self.stats["misses"]),
+                "evictions": dict(self.stats["evictions"])
+            }
 
+
+class WebSocketManager:
+    """Manages real-time WebSocket connections to exchanges."""
+    
+    def __init__(self, connection_limit=100, reconnect_interval=5, ping_interval=30):
+        """
+        Initialize the WebSocket manager.
+        
+        Args:
+            connection_limit: Maximum concurrent WebSocket connections
+            reconnect_interval: Time to wait before reconnecting (seconds)
+            ping_interval: Interval for sending keep-alive pings (seconds)
+        """
+        self.connection_limit = connection_limit
+        self.reconnect_interval = reconnect_interval
+        self.ping_interval = ping_interval
+        
+        # Active connections
+        self.connections = {}  # key -> connection
+        self.connection_status = {}  # key -> status
+        self.connection_stats = {}  # key -> stats
+        self.message_handlers = {}  # key -> handler function
+        self.error_handlers = {}  # key -> error handler function
+        
+        # Connection threads
+        self.connection_threads = {}  # key -> thread
+        
+        # Message queues for each connection
+        self.message_queues = {}  # key -> queue
+        
+        # Connection lock
+        self.lock = threading.RLock()
+        
+        # Background tasks
+        self.running = False
+        self.monitor_thread = None

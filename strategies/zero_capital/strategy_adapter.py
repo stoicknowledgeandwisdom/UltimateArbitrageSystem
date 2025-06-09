@@ -2,6 +2,372 @@
 # -*- coding: utf-8 -*-
 
 """
+Zero-Capital Strategy Adapter
+============================
+
+A comprehensive adapter that bridges the abstract strategy interface with 
+concrete implementations for zero-capital arbitrage strategies. This adapter
+integrates with flash loans and graph-based opportunity detection to enable
+sophisticated zero-capital trading strategies.
+
+Features:
+- Integration with multiple zero-capital strategy types
+- Flash loan facilitation for capital-free execution
+- Graph-based opportunity detection
+- Real-time validation and execution
+- Comprehensive error handling and recovery
+- Performance monitoring and optimization
+- Circuit breakers for risk management
+"""
+
+import os
+import json
+import time
+import logging
+import threading
+import asyncio
+import uuid
+from typing import Dict, List, Any, Optional, Union, Tuple, Set, Callable
+from enum import Enum
+from datetime import datetime, timedelta
+from decimal import Decimal
+import traceback
+import random
+import hashlib
+import math
+from dataclasses import dataclass, field
+from concurrent.futures import ThreadPoolExecutor, Future
+import queue
+
+# Import strategy interface
+from strategies.strategy_interface import (
+    Strategy, StrategyType, ExecutionMode, CapitalRequirement, RiskProfile,
+    StrategyStatus, ExecutionPriority, MetricType, ProfitCalculation, 
+    OpportunityDetails, ExecutionResult, StrategyMetrics, StrategyError
+)
+
+# Import graph detector
+from strategies.zero_capital.graph_detector import (
+    MarketGraph, ArbitrageOpportunity
+)
+
+# Import flash loan integration
+from integrations.defi.flash_loan import (
+    FlashLoanProvider, FlashLoanParams, ArbitrageRoute, ArbitrageStep,
+    ProtocolType, ChainType, FlashLoanResult, TransactionStatus
+)
+
+# Import exchange manager
+from exchanges.exchange_manager import ExchangeManager
+
+# Configure logging
+logger = logging.getLogger("ZeroCapitalAdapter")
+
+
+class OpportunityStatus(Enum):
+    """Status of an arbitrage opportunity"""
+    DETECTED = "detected"
+    VALIDATING = "validating"
+    VALID = "valid"
+    INVALID = "invalid"
+    EXECUTING = "executing"
+    EXECUTED = "executed"
+    FAILED = "failed"
+    EXPIRED = "expired"
+    CANCELED = "canceled"
+
+
+class OpportunityType(Enum):
+    """Types of arbitrage opportunities"""
+    TRIANGULAR = "triangular"
+    CROSS_EXCHANGE = "cross_exchange"
+    FLASH_LOAN = "flash_loan"
+    MULTI_HOP = "multi_hop"
+    STATISTICAL = "statistical"
+    CUSTOM = "custom"
+
+
+class StrategyMode(Enum):
+    """Operating modes for zero-capital strategies"""
+    DETECTION_ONLY = "detection_only"  # Only detect opportunities, don't execute
+    VALIDATION_ONLY = "validation_only"  # Detect and validate but don't execute
+    SIMULATION = "simulation"  # Full simulation without real trades
+    EXECUTION = "execution"  # Full execution with real trades
+
+
+class CircuitBreakerStatus(Enum):
+    """Status of circuit breakers for risk management"""
+    NORMAL = "normal"  # Normal operation
+    WARNING = "warning"  # Warning level - increased monitoring
+    TRIPPED = "tripped"  # Circuit breaker triggered - paused operation
+    RECOVERING = "recovering"  # Recovering from tripped state
+
+
+@dataclass
+class OpportunityTracker:
+    """Tracks an arbitrage opportunity through its lifecycle"""
+    opportunity_id: str
+    opportunity_type: OpportunityType
+    detected_time: datetime
+    raw_opportunity: Any  # Original opportunity data
+    status: OpportunityStatus = OpportunityStatus.DETECTED
+    validation_time: Optional[datetime] = None
+    execution_start_time: Optional[datetime] = None
+    execution_end_time: Optional[datetime] = None
+    profit_calculation: Optional[ProfitCalculation] = None
+    flash_loan_params: Optional[Dict[str, Any]] = None
+    execution_result: Optional[ExecutionResult] = None
+    error_message: Optional[str] = None
+    attempts: int = 0
+    max_attempts: int = 3
+    priority_score: float = 0.0
+    is_flash_loan: bool = False
+    flash_loan_result: Optional[FlashLoanResult] = None
+    execution_path: List[Dict[str, Any]] = field(default_factory=list)
+    telemetry: Dict[str, Any] = field(default_factory=dict)
+    
+    def update_status(self, status: OpportunityStatus, error: Optional[str] = None):
+        """Update the status of the opportunity"""
+        self.status = status
+        if error:
+            self.error_message = error
+        
+        if status == OpportunityStatus.VALIDATING:
+            self.validation_time = datetime.now()
+        elif status == OpportunityStatus.EXECUTING:
+            self.execution_start_time = datetime.now()
+        elif status in (OpportunityStatus.EXECUTED, OpportunityStatus.FAILED, 
+                      OpportunityStatus.EXPIRED, OpportunityStatus.CANCELED):
+            self.execution_end_time = datetime.now()
+    
+    def is_expired(self, ttl_seconds: int = 30) -> bool:
+        """Check if the opportunity has expired based on detection time"""
+        time_elapsed = (datetime.now() - self.detected_time).total_seconds()
+        return time_elapsed > ttl_seconds
+    
+    def can_retry(self) -> bool:
+        """Check if the opportunity can be retried"""
+        return self.attempts < self.max_attempts
+    
+    def add_telemetry(self, key: str, value: Any):
+        """Add telemetry data for the opportunity"""
+        self.telemetry[key] = value
+        
+    def get_duration(self) -> Optional[float]:
+        """Get the total duration of the opportunity lifecycle in seconds"""
+        if self.execution_end_time and self.detected_time:
+            return (self.execution_end_time - self.detected_time).total_seconds()
+        return None
+    
+    def get_execution_duration(self) -> Optional[float]:
+        """Get the execution duration in seconds"""
+        if self.execution_end_time and self.execution_start_time:
+            return (self.execution_end_time - self.execution_start_time).total_seconds()
+        return None
+    
+    def get_validation_duration(self) -> Optional[float]:
+        """Get the validation duration in seconds"""
+        if self.validation_time and self.detected_time:
+            return (self.validation_time - self.detected_time).total_seconds()
+        return None
+
+
+class CircuitBreaker:
+    """Implements circuit breaker pattern for risk management"""
+    
+    def __init__(self, strategy_id: str, window_size: int = 10, 
+                 error_threshold: float = 0.5, cooldown_period: int = 300):
+        """
+        Initialize the circuit breaker.
+        
+        Args:
+            strategy_id: ID of the strategy this circuit breaker monitors
+            window_size: Number of executions to consider for error rate
+            error_threshold: Error rate threshold to trip the circuit breaker
+            cooldown_period: Cooldown period in seconds after tripping
+        """
+        self.strategy_id = strategy_id
+        self.window_size = window_size
+        self.error_threshold = error_threshold
+        self.cooldown_period = cooldown_period
+        
+        self.status = CircuitBreakerStatus.NORMAL
+        self.execution_results = []  # List of recent execution success/failure
+        self.last_tripped_time = None
+        self.errors = []  # List of recent errors
+        self.lock = threading.RLock()
+    
+    def record_execution(self, success: bool, error: Optional[str] = None):
+        """
+        Record an execution result.
+        
+        Args:
+            success: Whether the execution was successful
+            error: Error message if the execution failed
+        """
+        with self.lock:
+            self.execution_results.append(success)
+            
+            # Trim to window size
+            if len(self.execution_results) > self.window_size:
+                self.execution_results = self.execution_results[-self.window_size:]
+            
+            # Record error if present
+            if not success and error:
+                self.errors.append(error)
+                if len(self.errors) > self.window_size:
+                    self.errors = self.errors[-self.window_size:]
+            
+            # Check if we need to trip the circuit breaker
+            self._check_status()
+    
+    def _check_status(self):
+        """Check if the circuit breaker should be tripped or reset"""
+        # If we're in cooldown, check if it's time to move to recovery
+        if self.status == CircuitBreakerStatus.TRIPPED and self.last_tripped_time:
+            elapsed = (datetime.now() - self.last_tripped_time).total_seconds()
+            if elapsed > self.cooldown_period:
+                self.status = CircuitBreakerStatus.RECOVERING
+                logger.info(f"Circuit breaker for {self.strategy_id} entering recovery mode")
+                return
+        
+        # If we're recovering and have some successful executions, reset to normal
+        if self.status == CircuitBreakerStatus.RECOVERING:
+            if self.execution_results and all(self.execution_results[-3:]):
+                self.status = CircuitBreakerStatus.NORMAL
+                logger.info(f"Circuit breaker for {self.strategy_id} reset to normal")
+                return
+        
+        # Check error rate if we have enough data and we're not already tripped
+        if len(self.execution_results) >= 3 and self.status not in (
+            CircuitBreakerStatus.TRIPPED, CircuitBreakerStatus.RECOVERING
+        ):
+            error_rate = 1.0 - (sum(self.execution_results) / len(self.execution_results))
+            
+            # Set warning level at 70% of threshold
+            if error_rate >= self.error_threshold * 0.7 and error_rate < self.error_threshold:
+                if self.status != CircuitBreakerStatus.WARNING:
+                    self.status = CircuitBreakerStatus.WARNING
+                    logger.warning(f"Circuit breaker for {self.strategy_id} in warning state (error rate: {error_rate:.2f})")
+            
+            # Trip the circuit breaker
+            elif error_rate >= self.error_threshold:
+                self.status = CircuitBreakerStatus.TRIPPED
+                self.last_tripped_time = datetime.now()
+                logger.error(f"Circuit breaker for {self.strategy_id} TRIPPED (error rate: {error_rate:.2f})")
+                logger.error(f"Recent errors: {self.errors}")
+    
+    def is_allowed(self) -> bool:
+        """Check if operations are allowed by the circuit breaker"""
+        with self.lock:
+            return self.status not in (CircuitBreakerStatus.TRIPPED, CircuitBreakerStatus.RECOVERING)
+    
+    def get_status(self) -> CircuitBreakerStatus:
+        """Get the current status of the circuit breaker"""
+        with self.lock:
+            return self.status
+    
+    def reset(self):
+        """Manually reset the circuit breaker to normal state"""
+        with self.lock:
+            self.status = CircuitBreakerStatus.NORMAL
+            self.execution_results = []
+            self.errors = []
+            self.last_tripped_time = None
+            logger.info(f"Circuit breaker for {self.strategy_id} manually reset")
+    
+    def get_error_rate(self) -> float:
+        """Get the current error rate"""
+        with self.lock:
+            if not self.execution_results:
+                return 0.0
+            return 1.0 - (sum(self.execution_results) / len(self.execution_results))
+
+
+class ZeroCapitalStrategyAdapter:
+    """
+    Adapter class that connects the abstract strategy interface with
+    concrete implementations of zero-capital arbitrage strategies.
+    """
+    
+    def __init__(self, strategy_id: str, config: Dict[str, Any]):
+        """
+        Initialize the zero-capital strategy adapter.
+        
+        Args:
+            strategy_id: ID of the strategy
+            config: Strategy configuration
+        """
+        self.strategy_id = strategy_id
+        self.config = config
+        self.name = config.get("name", "Zero-Capital Strategy")
+        self.strategy_type = config.get("type", "triangular_arbitrage")
+        self.exchange_id = config.get("exchange_id", "")
+        self.base_currency = config.get("base_currency", "USDT")
+        self.min_profit_threshold = Decimal(str(config.get("min_profit_threshold", 0.005)))
+        self.max_slippage = Decimal(str(config.get("max_slippage", 0.002)))
+        self.execution_speed = config.get("execution_speed", "normal")
+        self.max_concurrent_trades = config.get("max_concurrent_trades", 1)
+        
+        # Strategy operating mode
+        self.mode = StrategyMode(config.get("mode", StrategyMode.DETECTION_ONLY.value))
+        
+        # Opportunity tracking
+        self.opportunities = {}  # ID -> OpportunityTracker
+        self.active_executions = {}  # ID -> Future
+        self.historical_opportunities = []  # List of completed opportunities
+        self.opportunity_lock = threading.RLock()
+        
+        # Flash loan settings
+        self.flash_loan_enabled = config.get("flash_loan_enabled", False)
+        self.preferred_flash_loan_protocols = config.get("preferred_flash_loan_protocols", ["aave_v3", "balancer"])
+        self.max_flash_loan_fee = Decimal(str(config.get("max_flash_loan_fee", 0.001)))  # 0.1%
+        
+        # Performance tracking
+        self.metrics = {
+            "opportunities_detected": 0,
+            "opportunities_validated": 0,
+            "opportunities_executed": 0,
+            "opportunities_succeeded": 0,
+            "opportunities_failed": 0,
+            "total_profit": Decimal("0"),
+            "total_volume": Decimal("0"),
+            "average_profit_pct": Decimal("0"),
+            "max_profit": Decimal("0"),
+            "execution_times": [],
+            "validation_times": [],
+            "flash_loans_executed": 0,
+            "flash_loans_succeeded": 0
+        }
+        
+        # Status tracking
+        self.status = StrategyStatus.IDLE
+        self.last_execution_time = None
+        self.last_detection_time = None
+        self.is_running = False
+        
+        # Circuit breaker for risk management
+        self.circuit_breaker = CircuitBreaker(
+            strategy_id=strategy_id,
+            window_size=config.get("circuit_breaker_window", 10),
+            error_threshold=config.get("circuit_breaker_threshold", 0.5),
+            cooldown_period=config.get("circuit_breaker_cooldown", 300)
+        )
+        
+        # Dependencies (to be injected)
+        self.exchange_manager = None
+        self.graph_detector = None
+        self.flash_loan_manager = None
+        
+        # Executors
+        self.execution_executor = ThreadPoolExecutor(max_workers=self.max_concurrent_trades)
+        
+        logger.info(f"Initialized ZeroCapitalStrategyAdapter for {self.name}
+
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+
+"""
 Strategy Adapter Module
 ======================
 
