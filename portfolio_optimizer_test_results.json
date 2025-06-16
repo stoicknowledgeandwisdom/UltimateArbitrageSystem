@@ -1,0 +1,116 @@
+{
+  "test_results": [
+    {
+      "test": "Basic Initialization",
+      "status": "\u2713 PASSED",
+      "passed": true,
+      "details": "Optimizer created successfully with correct config",
+      "timestamp": "2025-06-09T21:08:29.600787"
+    },
+    {
+      "test": "Data Preparation",
+      "status": "\u2713 PASSED",
+      "passed": true,
+      "details": "Successfully prepared data for 5 assets",
+      "timestamp": "2025-06-09T21:08:29.602802"
+    },
+    {
+      "test": "Regime Detection",
+      "status": "\u2713 PASSED",
+      "passed": true,
+      "details": "Detected regime: diversified",
+      "timestamp": "2025-06-09T21:08:29.603805"
+    },
+    {
+      "test": "Return Forecasting",
+      "status": "\u2713 PASSED",
+      "passed": true,
+      "details": "Generated forecasts for 5 assets",
+      "timestamp": "2025-06-09T21:08:30.068953"
+    },
+    {
+      "test": "Risk Modeling",
+      "status": "\u2713 PASSED",
+      "passed": true,
+      "details": "Generated (5, 5) risk model matrix",
+      "timestamp": "2025-06-09T21:08:30.069945"
+    },
+    {
+      "test": "Quantum Enhancement",
+      "status": "\u2713 PASSED",
+      "passed": true,
+      "details": "Quantum enhancement applied successfully",
+      "timestamp": "2025-06-09T21:08:30.069945"
+    },
+    {
+      "test": "Optimization - Config 1: Q=True, AI=True",
+      "status": "\u2713 PASSED",
+      "passed": true,
+      "details": "Sharpe: 0.069, Return: 0.0004",
+      "timestamp": "2025-06-09T21:08:30.094948"
+    },
+    {
+      "test": "Optimization - Config 2: Q=False, AI=True",
+      "status": "\u2713 PASSED",
+      "passed": true,
+      "details": "Sharpe: -0.127, Return: -0.0007",
+      "timestamp": "2025-06-09T21:08:30.116953"
+    },
+    {
+      "test": "Optimization - Config 3: Q=True, AI=False",
+      "status": "\u2713 PASSED",
+      "passed": true,
+      "details": "Sharpe: 0.372, Return: 0.0019",
+      "timestamp": "2025-06-09T21:08:30.120953"
+    },
+    {
+      "test": "Portfolio Metrics",
+      "status": "\u2713 PASSED",
+      "passed": true,
+      "details": "Value: $159.47, Sharpe: 0.279, Risk Score: 2.3",
+      "timestamp": "2025-06-09T21:08:30.122953"
+    },
+    {
+      "test": "Performance Comparison",
+      "status": "\u2713 PASSED",
+      "passed": true,
+      "details": "Best Sharpe: Config 3 (0.372), Best Return: Config 3 (0.0019), Lowest Vol: Config 1 (0.0052)",
+      "timestamp": "2025-06-09T21:08:30.122953"
+    },
+    {
+      "test": "Edge Case - Single Asset",
+      "status": "\u2713 PASSED",
+      "passed": true,
+      "details": "Handled 1 assets successfully",
+      "timestamp": "2025-06-09T21:08:30.128946"
+    },
+    {
+      "test": "Edge Case - Two Assets",
+      "status": "\u2713 PASSED",
+      "passed": true,
+      "details": "Handled 2 assets successfully",
+      "timestamp": "2025-06-09T21:08:30.136953"
+    },
+    {
+      "test": "Edge Case - Many Assets",
+      "status": "\u2713 PASSED",
+      "passed": true,
+      "details": "Handled 20 assets successfully",
+      "timestamp": "2025-06-09T21:08:30.157947"
+    },
+    {
+      "test": "Edge Cases Overall",
+      "status": "\u2713 PASSED",
+      "passed": true,
+      "details": "All edge cases handled successfully",
+      "timestamp": "2025-06-09T21:08:30.157947"
+    }
+  ],
+  "summary": {
+    "total_tests": 15,
+    "passed": 15,
+    "failed": 0,
+    "success_rate": 100.0
+  },
+  "timestamp": "2025-06-09T21:08:30.158946"
+}
