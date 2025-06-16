@@ -43,6 +43,9 @@ try:
     from ultimate_config_manager import get_config_manager, UltimateConfigManager
     from ultimate_data_integrator import get_data_integrator, UltimateDataIntegrator
     from ultimate_ai_governance import get_ai_governance, UltimateAIGovernance
+    from income_maximization_engine import get_income_maximization_engine
+    from advanced_profit_strategies import get_advanced_profit_strategies
+    from ultimate_automation_interface import get_ultimate_automation_interface
 except ImportError as e:
     print(f"❌ Failed to import core components: {e}")
     print("Please ensure all dependencies are installed.")
@@ -74,6 +77,11 @@ class UltimateArbitrageSystem:
         self.config_manager = None
         self.data_integrator = None
         self.ai_governance = None
+        
+        # Advanced modules
+        self.income_maximization_engine = None
+        self.advanced_profit_strategies = None
+        self.automation_interface = None
         
         # System metrics
         self.total_profit = 0.0
