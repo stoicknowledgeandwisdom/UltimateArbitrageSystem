@@ -1,0 +1,233 @@
+{
+  "timestamp": "2025-06-16T21:21:25.206299",
+  "target_path": ".",
+  "sast_results": {
+    "semgrep": {
+      "status": "error",
+      "error": "[WinError 2] The system cannot find the file specified"
+    },
+    "bandit": {
+      "status": "error",
+      "error": "[WinError 2] The system cannot find the file specified"
+    },
+    "safety": {
+      "status": "error",
+      "error": "[WinError 2] The system cannot find the file specified"
+    }
+  },
+  "dast_results": {
+    "owasp_zap": {
+      "status": "skipped",
+      "reason": "No target URLs configured"
+    },
+    "nuclei": {
+      "status": "skipped",
+      "reason": "No target URLs configured"
+    }
+  },
+  "dependency_scan_results": {
+    "osv_scanner": {
+      "status": "error",
+      "error": "[WinError 2] The system cannot find the file specified"
+    },
+    "trivy": {
+      "status": "error",
+      "error": "[WinError 2] The system cannot find the file specified"
+    }
+  },
+  "container_scan_results": {
+    "hardening_status": {},
+    "vulnerabilities": [],
+    "best_practices": {},
+    "dockerfiles_analyzed": 4,
+    "dockerfile_Dockerfile": {
+      "security_issues": [],
+      "best_practices": [],
+      "hardening_score": 100
+    },
+    "dockerfile_Dockerfile.hardened": {
+      "security_issues": [],
+      "best_practices": [
+        {
+          "line": 23,
+          "practice": "Use specific image tags instead of latest",
+          "severity": "medium"
+        }
+      ],
+      "hardening_score": 95
+    },
+    "hardening_recommendations": {
+      "distroless_images": {
+        "enabled": true,
+        "description": "Use distroless base images to reduce attack surface",
+        "implementation": "FROM gcr.io/distroless/python3"
+      },
+      "rootless_runtime": {
+        "enabled": true,
+        "description": "Run containers with non-root user",
+        "implementation": "USER 1000:1000"
+      },
+      "seccomp_profile": {
+        "enabled": true,
+        "description": "Apply seccomp security profile",
+        "implementation": "--security-opt seccomp=seccomp-profile.json"
+      },
+      "read_only_root": {
+        "enabled": true,
+        "description": "Mount root filesystem as read-only",
+        "implementation": "--read-only"
+      },
+      "capabilities_drop": {
+        "enabled": true,
+        "description": "Drop unnecessary Linux capabilities",
+        "implementation": "--cap-drop=ALL --cap-add=SETUID --cap-add=SETGID"
+      }
+    }
+  },
+  "compliance_results": {
+    "soc2": {
+      "framework": "SOC2",
+      "controls_count": 5,
+      "controls": {
+        "CC1.1": {
+          "id": "CC1.1",
+          "framework": "ComplianceFramework.SOC2",
+          "title": "Control Environment - Integrity and Ethical Values",
+          "description": "Management demonstrates commitment to integrity and ethical values",
+          "implementation_status": "pending",
+          "evidence_path": null,
+          "jira_ticket": null,
+          "policy_document": null,
+          "last_assessed": null,
+          "assessment_notes": null
+        },
+        "CC2.1": {
+          "id": "CC2.1",
+          "framework": "ComplianceFramework.SOC2",
+          "title": "Communication and Information",
+          "description": "Management obtains/generates and uses relevant information",
+          "implementation_status": "pending",
+          "evidence_path": null,
+          "jira_ticket": null,
+          "policy_document": null,
+          "last_assessed": null,
+          "assessment_notes": null
+        },
+        "CC6.1": {
+          "id": "CC6.1",
+          "framework": "ComplianceFramework.SOC2",
+          "title": "Logical and Physical Access Controls",
+          "description": "Entity implements logical access security software",
+          "implementation_status": "pending",
+          "evidence_path": null,
+          "jira_ticket": null,
+          "policy_document": null,
+          "last_assessed": null,
+          "assessment_notes": null
+        },
+        "CC6.2": {
+          "id": "CC6.2",
+          "framework": "ComplianceFramework.SOC2",
+          "title": "Logical and Physical Access Controls",
+          "description": "Prior to system access, users are identified and authenticated",
+          "implementation_status": "pending",
+          "evidence_path": null,
+          "jira_ticket": null,
+          "policy_document": null,
+          "last_assessed": null,
+          "assessment_notes": null
+        },
+        "CC7.1": {
+          "id": "CC7.1",
+          "framework": "ComplianceFramework.SOC2",
+          "title": "System Operations",
+          "description": "Entity uses encryption to protect data",
+          "implementation_status": "pending",
+          "evidence_path": null,
+          "jira_ticket": null,
+          "policy_document": null,
+          "last_assessed": null,
+          "assessment_notes": null
+        }
+      }
+    },
+    "iso27001": {
+      "framework": "ISO27001",
+      "controls_count": 5,
+      "controls": {
+        "A.5.1.1": {
+          "id": "A.5.1.1",
+          "framework": "ComplianceFramework.ISO27001",
+          "title": "Information Security Policies",
+          "description": "Information security policy document",
+          "implementation_status": "pending",
+          "evidence_path": null,
+          "jira_ticket": null,
+          "policy_document": null,
+          "last_assessed": null,
+          "assessment_notes": null
+        },
+        "A.6.1.2": {
+          "id": "A.6.1.2",
+          "framework": "ComplianceFramework.ISO27001",
+          "title": "Information Security in Project Management",
+          "description": "Information security in project management",
+          "implementation_status": "pending",
+          "evidence_path": null,
+          "jira_ticket": null,
+          "policy_document": null,
+          "last_assessed": null,
+          "assessment_notes": null
+        },
+        "A.9.1.1": {
+          "id": "A.9.1.1",
+          "framework": "ComplianceFramework.ISO27001",
+          "title": "Access Control Policy",
+          "description": "Access control policy",
+          "implementation_status": "pending",
+          "evidence_path": null,
+          "jira_ticket": null,
+          "policy_document": null,
+          "last_assessed": null,
+          "assessment_notes": null
+        },
+        "A.10.1.1": {
+          "id": "A.10.1.1",
+          "framework": "ComplianceFramework.ISO27001",
+          "title": "Cryptographic Policy",
+          "description": "Policy on the use of cryptographic controls",
+          "implementation_status": "pending",
+          "evidence_path": null,
+          "jira_ticket": null,
+          "policy_document": null,
+          "last_assessed": null,
+          "assessment_notes": null
+        },
+        "A.12.1.1": {
+          "id": "A.12.1.1",
+          "framework": "ComplianceFramework.ISO27001",
+          "title": "Operational Procedures",
+          "description": "Documented operating procedures",
+          "implementation_status": "pending",
+          "evidence_path": null,
+          "jira_ticket": null,
+          "policy_document": null,
+          "last_assessed": null,
+          "assessment_notes": null
+        }
+      }
+    }
+  },
+  "summary": {
+    "total_findings": 0,
+    "by_severity": {
+      "critical": 0,
+      "high": 0,
+      "medium": 0,
+      "low": 0
+    },
+    "by_category": {},
+    "by_scanner": {},
+    "risk_score": 0
+  }
+}

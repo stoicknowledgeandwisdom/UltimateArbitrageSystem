@@ -1,0 +1,30 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: airflow-config
+  namespace: airflow
+data:
+  AIRFLOW__CORE__EXECUTOR: "KubernetesExecutor"
+  AIRFLOW__CORE__SQL_ALCHEMY_CONN: "postgresql+psycopg2://airflow:airflow@postgres:5432/airflow"
+  AIRFLOW__CORE__DAGS_FOLDER: "/opt/airflow/dags"
+  AIRFLOW__CORE__BASE_LOG_FOLDER: "/opt/airflow/logs"
+  AIRFLOW__CORE__REMOTE_LOGGING: "False"
+  AIRFLOW__CORE__LOAD_EXAMPLES: "False"
+  AIRFLOW__CORE__DEFAULT_TIMEZONE: "UTC"
+  AIRFLOW__WEBSERVER__BASE_URL: "http://localhost:8080"
+  AIRFLOW__WEBSERVER__DAG_DEFAULT_VIEW: "graph"
+  AIRFLOW__SCHEDULER__CATCHUP_BY_DEFAULT: "False"
+  AIRFLOW__KUBERNETES__NAMESPACE: "airflow"
+  AIRFLOW__KUBERNETES__WORKER_CONTAINER_REPOSITORY: "arbitrage-airflow"
+  AIRFLOW__KUBERNETES__WORKER_CONTAINER_TAG: "latest"
+  AIRFLOW__KUBERNETES__WORKER_CONTAINER_IMAGE_PULL_POLICY: "Always"
+  AIRFLOW__KUBERNETES__DELETE_WORKER_PODS: "True"
+  AIRFLOW__KUBERNETES__WORKER_PODS_CREATION_BATCH_SIZE: "1"
+  AIRFLOW__API__AUTH_BACKEND: "airflow.api.auth.backend.basic_auth"
+  KAFKA_BOOTSTRAP_SERVERS: "kafka-service:9092"
+  TRANSFERWISE_API_URL: "https://api.transferwise.com"
+  POSTGRES_DB: "airflow"
+  POSTGRES_USER: "airflow"
+  POSTGRES_PASSWORD: "airflow"
+  REDIS_URL: "redis://redis-service:6379/0"
+

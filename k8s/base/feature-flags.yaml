@@ -1,0 +1,325 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: feature-flags
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: flagd
+  namespace: feature-flags
+  labels:
+    app: flagd
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: flagd
+  template:
+    metadata:
+      labels:
+        app: flagd
+    spec:
+      containers:
+      - name: flagd
+        image: ghcr.io/open-feature/flagd:latest
+        ports:
+        - containerPort: 8013
+          name: grpc
+        - containerPort: 8014
+          name: http
+        env:
+        - name: FLAGD_LOG_LEVEL
+          value: "info"
+        - name: FLAGD_METRICS_EXPORTER
+          value: "prometheus"
+        args:
+        - "start"
+        - "--uri"
+        - "file:./etc/flagd/config.json"
+        volumeMounts:
+        - name: config
+          mountPath: /etc/flagd
+          readOnly: true
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: 8014
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /readyz
+            port: 8014
+          initialDelaySeconds: 5
+          periodSeconds: 5
+        resources:
+          limits:
+            cpu: 200m
+            memory: 256Mi
+          requests:
+            cpu: 100m
+            memory: 128Mi
+      volumes:
+      - name: config
+        configMap:
+          name: flagd-config
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: flagd-service
+  namespace: feature-flags
+  labels:
+    app: flagd
+spec:
+  selector:
+    app: flagd
+  ports:
+  - name: grpc
+    port: 8013
+    targetPort: 8013
+    protocol: TCP
+  - name: http
+    port: 8014
+    targetPort: 8014
+    protocol: TCP
+  type: ClusterIP
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: flagd-config
+  namespace: feature-flags
+data:
+  config.json: |
+    {
+      "flags": {
+        "canary-deployment": {
+          "state": "ENABLED",
+          "variants": {
+            "on": true,
+            "off": false
+          },
+          "defaultVariant": "off",
+          "targeting": {
+            "if": [
+              {
+                "in": [
+                  {"var": "environment"},
+                  ["dev", "staging"]
+                ]
+              },
+              "on",
+              {
+                "fractional": [
+                  {"var": "$flagd.flagKey"},
+                  {"var": "$flagd.targetingKey"},
+                  ["on", 1, "off", 99]
+                ]
+              }
+            ]
+          }
+        },
+        "blue-green-deployment": {
+          "state": "ENABLED",
+          "variants": {
+            "blue": "blue",
+            "green": "green"
+          },
+          "defaultVariant": "blue",
+          "targeting": {
+            "if": [
+              {
+                "==": [
+                  {"var": "deployment-strategy"},
+                  "blue-green"
+                ]
+              },
+              "green",
+              "blue"
+            ]
+          }
+        },
+        "progressive-rollout": {
+          "state": "ENABLED",
+          "variants": {
+            "enabled": true,
+            "disabled": false
+          },
+          "defaultVariant": "disabled",
+          "targeting": {
+            "fractional": [
+              {"var": "$flagd.flagKey"},
+              {"var": "$flagd.targetingKey"},
+              ["enabled", 5, "disabled", 95]
+            ]
+          }
+        },
+        "error-budget-enforcement": {
+          "state": "ENABLED",
+          "variants": {
+            "strict": "strict",
+            "permissive": "permissive"
+          },
+          "defaultVariant": "permissive",
+          "targeting": {
+            "if": [
+              {
+                "==": [
+                  {"var": "environment"},
+                  "prod"
+                ]
+              },
+              "strict",
+              "permissive"
+            ]
+          }
+        },
+        "monitoring-enhanced": {
+          "state": "ENABLED",
+          "variants": {
+            "on": true,
+            "off": false
+          },
+          "defaultVariant": "off",
+          "targeting": {
+            "if": [
+              {
+                "in": [
+                  {"var": "environment"},
+                  ["staging", "prod"]
+                ]
+              },
+              "on",
+              "off"
+            ]
+          }
+        }
+      }
+    }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: feature-flag-dashboard
+  namespace: feature-flags
+  labels:
+    app: feature-flag-dashboard
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: feature-flag-dashboard
+  template:
+    metadata:
+      labels:
+        app: feature-flag-dashboard
+    spec:
+      containers:
+      - name: dashboard
+        image: nginx:alpine
+        ports:
+        - containerPort: 80
+        volumeMounts:
+        - name: dashboard-config
+          mountPath: /usr/share/nginx/html
+          readOnly: true
+        resources:
+          limits:
+            cpu: 100m
+            memory: 128Mi
+          requests:
+            cpu: 50m
+            memory: 64Mi
+      volumes:
+      - name: dashboard-config
+        configMap:
+          name: dashboard-html
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: feature-flag-dashboard
+  namespace: feature-flags
+  labels:
+    app: feature-flag-dashboard
+spec:
+  selector:
+    app: feature-flag-dashboard
+  ports:
+  - port: 80
+    targetPort: 80
+    protocol: TCP
+  type: ClusterIP
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: dashboard-html
+  namespace: feature-flags
+data:
+  index.html: |
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <title>Feature Flag Dashboard</title>
+        <style>
+            body { font-family: Arial, sans-serif; margin: 40px; }
+            .flag { border: 1px solid #ccc; margin: 10px 0; padding: 15px; border-radius: 5px; }
+            .enabled { background-color: #d4edda; }
+            .disabled { background-color: #f8d7da; }
+            .toggle { margin: 10px 0; }
+            button { padding: 8px 16px; margin: 5px; border: none; border-radius: 3px; cursor: pointer; }
+            .enable-btn { background-color: #28a745; color: white; }
+            .disable-btn { background-color: #dc3545; color: white; }
+        </style>
+    </head>
+    <body>
+        <h1>Feature Flag Dashboard</h1>
+        <div id="flags"></div>
+        
+        <script>
+            const flags = [
+                { name: 'canary-deployment', description: 'Enable canary deployment strategy', enabled: false },
+                { name: 'blue-green-deployment', description: 'Enable blue-green deployment strategy', enabled: true },
+                { name: 'progressive-rollout', description: 'Enable progressive rollout (1%, 5%, 25%, 100%)', enabled: false },
+                { name: 'error-budget-enforcement', description: 'Enforce strict error budget policies', enabled: true },
+                { name: 'monitoring-enhanced', description: 'Enable enhanced monitoring and alerting', enabled: true }
+            ];
+            
+            function renderFlags() {
+                const container = document.getElementById('flags');
+                container.innerHTML = '';
+                
+                flags.forEach(flag => {
+                    const flagDiv = document.createElement('div');
+                    flagDiv.className = `flag ${flag.enabled ? 'enabled' : 'disabled'}`;
+                    flagDiv.innerHTML = `
+                        <h3>${flag.name}</h3>
+                        <p>${flag.description}</p>
+                        <p>Status: <strong>${flag.enabled ? 'ENABLED' : 'DISABLED'}</strong></p>
+                        <div class="toggle">
+                            <button class="enable-btn" onclick="toggleFlag('${flag.name}', true)">Enable</button>
+                            <button class="disable-btn" onclick="toggleFlag('${flag.name}', false)">Disable</button>
+                        </div>
+                    `;
+                    container.appendChild(flagDiv);
+                });
+            }
+            
+            function toggleFlag(flagName, enabled) {
+                const flag = flags.find(f => f.name === flagName);
+                if (flag) {
+                    flag.enabled = enabled;
+                    renderFlags();
+                    // In a real implementation, this would make an API call to update the flag
+                    console.log(`Flag ${flagName} ${enabled ? 'enabled' : 'disabled'}`);
+                }
+            }
+            
+            renderFlags();
+        </script>
+    </body>
+    </html>
+

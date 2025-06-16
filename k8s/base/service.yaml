@@ -1,0 +1,48 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: arbitrage-app
+  labels:
+    app: arbitrage-app
+spec:
+  ports:
+  - port: 80
+    targetPort: 3000
+    protocol: TCP
+    name: http
+  selector:
+    app: arbitrage-app
+  type: ClusterIP
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: arbitrage-app-canary
+  labels:
+    app: arbitrage-app
+spec:
+  ports:
+  - port: 80
+    targetPort: 3000
+    protocol: TCP
+    name: http
+  selector:
+    app: arbitrage-app
+  type: ClusterIP
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: arbitrage-app-preview
+  labels:
+    app: arbitrage-app
+spec:
+  ports:
+  - port: 80
+    targetPort: 3000
+    protocol: TCP
+    name: http
+  selector:
+    app: arbitrage-app
+  type: ClusterIP
+

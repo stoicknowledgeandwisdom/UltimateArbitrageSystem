@@ -1,0 +1,110 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: arbitrage-app
+  labels:
+    app: arbitrage-app
+spec:
+  replicas: 5
+  strategy:
+    canary:
+      maxSurge: "25%"
+      maxUnavailable: 0
+      analysis:
+        templates:
+        - templateName: success-rate
+        startingStep: 2
+        args:
+        - name: service-name
+          value: arbitrage-app-canary
+      steps:
+      - setWeight: 1
+      - pause:
+          duration: 10m
+      - setWeight: 5
+      - pause:
+          duration: 10m
+      - setWeight: 25
+      - pause:
+          duration: 10m
+      - setWeight: 50
+      - pause:
+          duration: 10m
+      - setWeight: 75
+      - pause:
+          duration: 5m
+      trafficRouting:
+        nginx:
+          stableIngress: arbitrage-app-stable
+          additionalIngressAnnotations:
+            canary-by-header: X-Canary
+            canary-by-header-value: "true"
+      scaleDownDelaySeconds: 30
+      prePromotionAnalysis:
+        templates:
+        - templateName: success-rate
+        args:
+        - name: service-name
+          value: arbitrage-app-canary
+      postPromotionAnalysis:
+        templates:
+        - templateName: success-rate
+        args:
+        - name: service-name
+          value: arbitrage-app
+  selector:
+    matchLabels:
+      app: arbitrage-app
+  template:
+    metadata:
+      labels:
+        app: arbitrage-app
+    spec:
+      containers:
+      - name: arbitrage-app
+        image: ghcr.io/ultimate-arbitrage/arbitrage-app:latest
+        ports:
+        - containerPort: 3000
+          protocol: TCP
+        env:
+        - name: NODE_ENV
+          value: production
+        - name: DB_HOST
+          valueFrom:
+            secretKeyRef:
+              name: db-credentials
+              key: host
+        - name: DB_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: db-credentials
+              key: password
+        - name: FEATURE_FLAG_ENDPOINT
+          value: "flagd-service.feature-flags.svc.cluster.local:8013"
+        resources:
+          limits:
+            cpu: 500m
+            memory: 512Mi
+          requests:
+            cpu: 250m
+            memory: 256Mi
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 3000
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /ready
+            port: 3000
+          initialDelaySeconds: 5
+          periodSeconds: 5
+        startupProbe:
+          httpGet:
+            path: /health
+            port: 3000
+          initialDelaySeconds: 10
+          periodSeconds: 10
+          failureThreshold: 30
+

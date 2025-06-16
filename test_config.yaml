@@ -1,0 +1,282 @@
+# Comprehensive Test Configuration for Ultimate Arbitrage System
+
+# Global test settings
+coverage_threshold: 95
+test_timeout: 300
+parallel_execution: true
+
+# Unit test configuration
+unit_tests:
+  parallel_workers: 4
+  timeout: 300
+  coverage_threshold: 95
+  fail_fast: false
+  markers:
+    - unit
+    - fast
+  exclude_patterns:
+    - "**/test_manual_*.py"
+    - "**/test_interactive_*.py"
+
+# Integration test configuration
+integration_tests:
+  timeout: 600
+  docker_required: true
+  services:
+    - postgres
+    - redis
+    - localstack
+  testcontainers:
+    postgres_image: "postgres:15"
+    redis_image: "redis:7"
+    localstack_image: "localstack/localstack:latest"
+  markers:
+    - integration
+    - requires_docker
+    - slow
+
+# Market simulation test configuration
+simulation_tests:
+  timeout: 900
+  monte_carlo_runs: 1000
+  simulation_duration_days: 30
+  historical_data_path: "data/historical"
+  synthetic_data_generation: true
+  markets:
+    - "BTC/USDT"
+    - "ETH/USDT"
+    - "BNB/USDT"
+  scenarios:
+    - normal_market
+    - high_volatility
+    - crash_scenario
+    - bubble_scenario
+  markers:
+    - simulation
+    - slow
+    - requires_data
+
+# Chaos engineering test configuration
+chaos_tests:
+  enabled: true
+  timeout: 1800
+  fault_duration: 120
+  recovery_timeout: 60
+  chaos_mesh_namespace: "chaos-testing"
+  fault_types:
+    - network_latency
+    - packet_loss
+    - api_errors
+    - service_unavailable
+    - memory_pressure
+  slo_checks:
+    - response_time: 5000  # ms
+    - error_rate: 0.05     # 5%
+    - availability: 0.99   # 99%
+  markers:
+    - chaos
+    - requires_k8s
+    - destructive
+
+# Performance test configuration
+performance_tests:
+  timeout: 1200
+  duration_seconds: 300
+  max_users: 100
+  spawn_rate: 10
+  warmup_time: 30
+  cooldown_time: 30
+  
+  # Load testing tools
+  tools:
+    k6:
+      enabled: true
+      script_path: "tests/performance/k6/"
+      thresholds:
+        http_req_duration: "p(95)<1000"  # 95% under 1s
+        http_req_failed: "rate<0.01"      # <1% errors
+    
+    locust:
+      enabled: true
+      script_path: "tests/performance/locust/"
+      host: "http://localhost:8000"
+  
+  # Profiling
+  profiling:
+    enabled: true
+    cpu_profiling: true
+    memory_profiling: true
+    flame_graphs: true
+    profile_duration: 60
+  
+  # Performance thresholds
+  thresholds:
+    max_response_time_ms: 1000
+    max_error_rate: 0.01
+    min_rps: 100
+    max_cpu_percent: 80
+    max_memory_mb: 8000
+  
+  markers:
+    - performance
+    - benchmark
+    - slow
+
+# Rust test configuration
+rust_tests:
+  timeout: 600
+  coverage_threshold: 95
+  benchmark: true
+  cargo_features:
+    - "--all-features"
+  test_types:
+    - unit
+    - integration
+    - bench
+  coverage_tool: "cargo-tarpaulin"
+  benchmark_tool: "cargo-criterion"
+  
+  # Rust-specific settings
+  cargo_flags:
+    - "--release"  # For benchmarks
+  
+  markers:
+    - rust
+    - native
+
+# Test data configuration
+test_data:
+  fixtures_path: "tests/fixtures"
+  mock_data_path: "tests/data/mock"
+  historical_data_path: "tests/data/historical"
+  
+  # Data generation
+  generate_fixtures: true
+  fixture_size: "medium"  # small, medium, large
+  
+  # Database fixtures
+  database_fixtures:
+    - portfolio_data
+    - market_data
+    - trade_history
+    - user_accounts
+
+# Reporting configuration
+reporting:
+  formats:
+    - junit
+    - html
+    - json
+    - coverage
+  
+  # Report paths
+  output_dir: "test_reports"
+  junit_file: "test-results.xml"
+  html_file: "test-report.html"
+  coverage_html_dir: "htmlcov"
+  coverage_xml_file: "coverage.xml"
+  
+  # Rich console output
+  console:
+    show_progress: true
+    show_summary: true
+    colored_output: true
+
+# Environment configuration
+environment:
+  test_env: "testing"
+  log_level: "DEBUG"
+  
+  # Database URLs for testing
+  postgres_url: "postgresql://test:test@localhost:5432/arbitrage_test"
+  redis_url: "redis://localhost:6379/1"
+  
+  # API endpoints
+  api_base_url: "http://localhost:8000"
+  
+  # AWS LocalStack
+  aws_endpoint_url: "http://localhost:4566"
+  aws_region: "us-east-1"
+  aws_access_key_id: "test"
+  aws_secret_access_key: "test"
+
+# CI/CD integration
+ci_cd:
+  github_actions:
+    enabled: true
+    matrix_python_versions:
+      - "3.9"
+      - "3.10"
+      - "3.11"
+    matrix_rust_versions:
+      - "stable"
+      - "beta"
+  
+  # Test result uploads
+  codecov:
+    enabled: true
+    token_env_var: "CODECOV_TOKEN"
+  
+  # Slack notifications
+  notifications:
+    slack:
+      enabled: false
+      webhook_url_env_var: "SLACK_WEBHOOK_URL"
+      channels:
+        - "#testing"
+        - "#ci-cd"
+
+# Security testing
+security_tests:
+  enabled: true
+  tools:
+    bandit:
+      enabled: true
+      config_file: ".bandit"
+    safety:
+      enabled: true
+      ignore_ids: []
+    semgrep:
+      enabled: false  # Optional
+      rules: "auto"
+  
+  markers:
+    - security
+    - vulnerability_scan
+
+# Load testing scenarios
+load_scenarios:
+  light_load:
+    users: 10
+    duration: 60
+    spawn_rate: 2
+  
+  normal_load:
+    users: 50
+    duration: 300
+    spawn_rate: 5
+  
+  heavy_load:
+    users: 100
+    duration: 600
+    spawn_rate: 10
+  
+  stress_test:
+    users: 200
+    duration: 300
+    spawn_rate: 20
+  
+  spike_test:
+    users: 500
+    duration: 120
+    spawn_rate: 50
+
+# Cleanup configuration
+cleanup:
+  after_each_test: true
+  after_test_session: true
+  docker_containers: true
+  temp_files: true
+  test_databases: true
+  cache_files: true
+

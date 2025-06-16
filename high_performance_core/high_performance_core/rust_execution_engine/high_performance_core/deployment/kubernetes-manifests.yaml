@@ -1,0 +1,641 @@
+---
+# Namespace for the high-performance trading system
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: ultra-trading-system
+  labels:
+    name: ultra-trading-system
+    environment: production
+
+---
+# ConfigMap for system configuration
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: trading-engine-config
+  namespace: ultra-trading-system
+data:
+  engine.toml: |
+    [engine]
+    target_latency_ns = 10000
+    target_throughput = 2000000
+    disruptor_buffer_size = 65536
+    memory_pool_size = 1073741824  # 1GB
+    memory_pool_block_size = 4096
+    
+    [nats]
+    url = "nats://nats-cluster:4222"
+    subject_prefix = "trading"
+    max_reconnect_attempts = 10
+    
+    [metrics]
+    prometheus_port = 9090
+    collection_interval_ms = 1000
+    
+    [performance]
+    cpu_affinity = [0, 1, 2, 3]  # Pin to specific CPU cores
+    numa_node = 0
+    huge_pages = true
+    
+  strategies.json: |
+    {
+      "strategies": [
+        {
+          "name": "GoldenCross",
+          "wasm_path": "/app/strategies/GoldenCross.wasm",
+          "enabled": true,
+          "config": {
+            "sma_short": 20,
+            "sma_long": 50,
+            "max_risk_per_trade": 0.02
+          }
+        },
+        {
+          "name": "MeanReversion",
+          "wasm_path": "/app/strategies/MeanReversion.wasm",
+          "enabled": true,
+          "config": {
+            "rsi_period": 14,
+            "oversold_threshold": 30,
+            "overbought_threshold": 70
+          }
+        }
+      ]
+    }
+
+---
+# Secret for API keys and sensitive data
+apiVersion: v1
+kind: Secret
+metadata:
+  name: trading-secrets
+  namespace: ultra-trading-system
+type: Opaque
+data:
+  # Base64 encoded values (replace with actual encoded secrets)
+  binance-api-key: "{{BINANCE_API_KEY_B64}}"
+  binance-secret-key: "{{BINANCE_SECRET_KEY_B64}}"
+  kraken-api-key: "{{KRAKEN_API_KEY_B64}}"
+  kraken-secret-key: "{{KRAKEN_SECRET_KEY_B64}}"
+  coinbase-api-key: "{{COINBASE_API_KEY_B64}}"
+  coinbase-secret-key: "{{COINBASE_SECRET_KEY_B64}}"
+
+---
+# Service for NATS JetStream cluster
+apiVersion: v1
+kind: Service
+metadata:
+  name: nats-cluster
+  namespace: ultra-trading-system
+  labels:
+    app: nats
+spec:
+  ports:
+  - port: 4222
+    name: nats
+    targetPort: 4222
+  - port: 8222
+    name: monitor
+    targetPort: 8222
+  - port: 6222
+    name: cluster
+    targetPort: 6222
+  selector:
+    app: nats
+  clusterIP: None
+
+---
+# NATS JetStream StatefulSet
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: nats-cluster
+  namespace: ultra-trading-system
+spec:
+  serviceName: nats-cluster
+  replicas: 3
+  selector:
+    matchLabels:
+      app: nats
+  template:
+    metadata:
+      labels:
+        app: nats
+    spec:
+      containers:
+      - name: nats
+        image: nats:2.10-alpine
+        ports:
+        - containerPort: 4222
+          name: nats
+        - containerPort: 8222
+          name: monitor
+        - containerPort: 6222
+          name: cluster
+        command:
+        - "nats-server"
+        - "--config"
+        - "/etc/nats-config/nats.conf"
+        volumeMounts:
+        - name: config-volume
+          mountPath: /etc/nats-config
+        - name: jetstream-storage
+          mountPath: /data/jetstream
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "500m"
+          limits:
+            memory: "1Gi"
+            cpu: "1000m"
+        livenessProbe:
+          httpGet:
+            path: /
+            port: 8222
+          initialDelaySeconds: 10
+          timeoutSeconds: 5
+        readinessProbe:
+          httpGet:
+            path: /
+            port: 8222
+          initialDelaySeconds: 10
+          timeoutSeconds: 5
+      volumes:
+      - name: config-volume
+        configMap:
+          name: nats-config
+  volumeClaimTemplates:
+  - metadata:
+      name: jetstream-storage
+    spec:
+      accessModes: ["ReadWriteOnce"]
+      resources:
+        requests:
+          storage: 10Gi
+      storageClassName: fast-ssd
+
+---
+# ConfigMap for NATS configuration
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: nats-config
+  namespace: ultra-trading-system
+data:
+  nats.conf: |
+    port: 4222
+    http_port: 8222
+    
+    # Clustering
+    cluster {
+      name: trading-cluster
+      port: 6222
+      routes: [
+        nats://nats-cluster-0.nats-cluster:6222
+        nats://nats-cluster-1.nats-cluster:6222
+        nats://nats-cluster-2.nats-cluster:6222
+      ]
+    }
+    
+    # JetStream configuration
+    jetstream {
+      store_dir: "/data/jetstream"
+      max_memory_store: 1GB
+      max_file_store: 10GB
+    }
+    
+    # Performance tuning
+    write_deadline: "10s"
+    max_connections: 64000
+    max_subscriptions: 0
+    max_pending: 256MB
+    max_payload: 8MB
+    
+    # Monitoring
+    server_name: $HOSTNAME
+    
+---
+# Service for the Rust execution engine
+apiVersion: v1
+kind: Service
+metadata:
+  name: rust-execution-engine
+  namespace: ultra-trading-system
+  labels:
+    app: rust-execution-engine
+spec:
+  ports:
+  - port: 8080
+    name: api
+    targetPort: 8080
+  - port: 9090
+    name: metrics
+    targetPort: 9090
+  selector:
+    app: rust-execution-engine
+  type: ClusterIP
+
+---
+# Deployment for the Rust execution engine
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: rust-execution-engine
+  namespace: ultra-trading-system
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: rust-execution-engine
+  template:
+    metadata:
+      labels:
+        app: rust-execution-engine
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "9090"
+        prometheus.io/path: "/metrics"
+    spec:
+      # High-performance node selection
+      nodeSelector:
+        node-type: high-performance
+      # CPU and memory optimization
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: kubernetes.io/arch
+                operator: In
+                values:
+                - amd64
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            podAffinityTerm:
+              labelSelector:
+                matchExpressions:
+                - key: app
+                  operator: In
+                  values:
+                  - rust-execution-engine
+              topologyKey: kubernetes.io/hostname
+      
+      containers:
+      - name: rust-execution-engine
+        image: ultra-trading/rust-execution-engine:latest
+        ports:
+        - containerPort: 8080
+          name: api
+        - containerPort: 9090
+          name: metrics
+        env:
+        - name: RUST_LOG
+          value: "info"
+        - name: NATS_URL
+          value: "nats://nats-cluster:4222"
+        - name: PROMETHEUS_PORT
+          value: "9090"
+        - name: TARGET_LATENCY_NS
+          value: "10000"
+        - name: TARGET_THROUGHPUT
+          value: "2000000"
+        volumeMounts:
+        - name: config-volume
+          mountPath: /app/config
+        - name: strategies-volume
+          mountPath: /app/strategies
+        - name: hugepages-2mi
+          mountPath: /hugepages-2Mi
+        # Ultra-low latency resource configuration
+        resources:
+          requests:
+            memory: "2Gi"
+            cpu: "2000m"
+            hugepages-2Mi: "1Gi"
+          limits:
+            memory: "4Gi"
+            cpu: "4000m"
+            hugepages-2Mi: "2Gi"
+        # Security context for performance
+        securityContext:
+          capabilities:
+            add:
+            - SYS_NICE  # For CPU affinity
+            - IPC_LOCK  # For memory locking
+          runAsUser: 1000
+          runAsGroup: 1000
+        # Health checks
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8080
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /ready
+            port: 8080
+          initialDelaySeconds: 10
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 3
+        # Startup probe for slow initialization
+        startupProbe:
+          httpGet:
+            path: /health
+            port: 8080
+          initialDelaySeconds: 10
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 30
+      volumes:
+      - name: config-volume
+        configMap:
+          name: trading-engine-config
+      - name: strategies-volume
+        configMap:
+          name: trading-strategies
+      - name: hugepages-2mi
+        emptyDir:
+          medium: HugePages-2Mi
+      # Performance optimizations
+      dnsPolicy: ClusterFirst
+      restartPolicy: Always
+      terminationGracePeriodSeconds: 30
+
+---
+# HorizontalPodAutoscaler for automatic scaling
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: rust-execution-engine-hpa
+  namespace: ultra-trading-system
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: rust-execution-engine
+  minReplicas: 3
+  maxReplicas: 20
+  metrics:
+  # CPU-based scaling
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 70
+  # Memory-based scaling
+  - type: Resource
+    resource:
+      name: memory
+      target:
+        type: Utilization
+        averageUtilization: 80
+  # Custom metrics for trading-specific scaling
+  - type: Pods
+    pods:
+      metric:
+        name: trading_latency_p99_microseconds
+      target:
+        type: AverageValue
+        averageValue: "50"  # Scale when p99 latency > 50μs
+  - type: Pods
+    pods:
+      metric:
+        name: trading_throughput_messages_per_second
+      target:
+        type: AverageValue
+        averageValue: "1500000"  # Scale when throughput < 1.5M msg/s
+  # Scaling behavior
+  behavior:
+    scaleUp:
+      stabilizationWindowSeconds: 60
+      policies:
+      - type: Percent
+        value: 100  # Double pods when scaling up
+        periodSeconds: 60
+      - type: Pods
+        value: 2    # Add at least 2 pods
+        periodSeconds: 60
+      selectPolicy: Max
+    scaleDown:
+      stabilizationWindowSeconds: 300  # Wait 5 minutes before scaling down
+      policies:
+      - type: Percent
+        value: 10   # Remove 10% of pods
+        periodSeconds: 60
+      - type: Pods
+        value: 1    # Remove at most 1 pod at a time
+        periodSeconds: 60
+      selectPolicy: Min
+
+---
+# VerticalPodAutoscaler for automatic resource adjustment
+apiVersion: autoscaling.k8s.io/v1
+kind: VerticalPodAutoscaler
+metadata:
+  name: rust-execution-engine-vpa
+  namespace: ultra-trading-system
+spec:
+  targetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: rust-execution-engine
+  updatePolicy:
+    updateMode: "Auto"
+  resourcePolicy:
+    containerPolicies:
+    - containerName: rust-execution-engine
+      controlledResources: ["cpu", "memory"]
+      minAllowed:
+        cpu: "1000m"
+        memory: "1Gi"
+      maxAllowed:
+        cpu: "8000m"
+        memory: "8Gi"
+
+---
+# ServiceMonitor for Prometheus monitoring
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: rust-execution-engine
+  namespace: ultra-trading-system
+  labels:
+    app: rust-execution-engine
+spec:
+  selector:
+    matchLabels:
+      app: rust-execution-engine
+  endpoints:
+  - port: metrics
+    interval: 1s  # High-frequency monitoring for latency
+    path: /metrics
+    honorLabels: true
+
+---
+# PodDisruptionBudget for high availability
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: rust-execution-engine-pdb
+  namespace: ultra-trading-system
+spec:
+  selector:
+    matchLabels:
+      app: rust-execution-engine
+  maxUnavailable: 1  # Ensure at least 2 pods are always running
+
+---
+# NetworkPolicy for security
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: rust-execution-engine-network-policy
+  namespace: ultra-trading-system
+spec:
+  podSelector:
+    matchLabels:
+      app: rust-execution-engine
+  policyTypes:
+  - Ingress
+  - Egress
+  ingress:
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          name: monitoring  # Allow Prometheus
+    ports:
+    - protocol: TCP
+      port: 9090
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          name: ultra-trading-system
+    ports:
+    - protocol: TCP
+      port: 8080
+  egress:
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          name: ultra-trading-system
+    ports:
+    - protocol: TCP
+      port: 4222  # NATS
+  - to: []  # Allow external exchange connections
+    ports:
+    - protocol: TCP
+      port: 443
+    - protocol: TCP
+      port: 80
+
+---
+# ConfigMap for trading strategies (WASM modules)
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: trading-strategies
+  namespace: ultra-trading-system
+binaryData:
+  # WASM binary data would be base64 encoded here
+  # These would be generated by the Python strategy sandbox
+  GoldenCross.wasm: "{{GOLDEN_CROSS_WASM_B64}}"
+  MeanReversion.wasm: "{{MEAN_REVERSION_WASM_B64}}"
+
+---
+# Job for initial system setup
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: system-setup
+  namespace: ultra-trading-system
+spec:
+  template:
+    spec:
+      containers:
+      - name: setup
+        image: ultra-trading/setup:latest
+        command:
+        - "/bin/sh"
+        - "-c"
+        - |
+          echo "Setting up trading system..."
+          
+          # Wait for NATS to be ready
+          until nats-server --version; do
+            echo "Waiting for NATS..."
+            sleep 5
+          done
+          
+          # Create JetStream streams
+          nats stream add TRADING_EVENTS --subjects="trading.events.*" --storage=file --replicas=3
+          nats stream add MARKET_DATA --subjects="trading.market.*" --storage=file --replicas=3
+          nats stream add ORDERS --subjects="trading.orders.*" --storage=file --replicas=3
+          
+          echo "System setup complete"
+        env:
+        - name: NATS_URL
+          value: "nats://nats-cluster:4222"
+      restartPolicy: OnFailure
+  backoffLimit: 3
+
+---
+# CronJob for performance monitoring and alerting
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: performance-monitor
+  namespace: ultra-trading-system
+spec:
+  schedule: "*/1 * * * *"  # Every minute
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          containers:
+          - name: monitor
+            image: ultra-trading/monitor:latest
+            command:
+            - "/bin/sh"
+            - "-c"
+            - |
+              echo "Checking system performance..."
+              
+              # Check latency targets
+              LATENCY=$(curl -s http://rust-execution-engine:9090/metrics | grep trading_latency_p99 | awk '{print $2}')
+              if [ "$LATENCY" -gt "50000" ]; then
+                echo "ALERT: P99 latency exceeds 50μs: ${LATENCY}ns"
+                # Send alert (webhook, Slack, etc.)
+              fi
+              
+              # Check throughput targets
+              THROUGHPUT=$(curl -s http://rust-execution-engine:9090/metrics | grep trading_throughput | awk '{print $2}')
+              if [ "$THROUGHPUT" -lt "2000000" ]; then
+                echo "ALERT: Throughput below target: ${THROUGHPUT} msg/s"
+                # Send alert
+              fi
+              
+              echo "Performance check complete"
+          restartPolicy: OnFailure
+      backoffLimit: 1
+
+---
+# StorageClass for high-performance storage
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: fast-ssd
+provisioner: kubernetes.io/no-provisioner
+parameters:
+  type: nvme-ssd
+  iops: "10000"
+  throughput: "500Mi"
+volumeBindingMode: WaitForFirstConsumer
+allowVolumeExpansion: true
+

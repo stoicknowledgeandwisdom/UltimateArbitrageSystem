@@ -1,0 +1,252 @@
+<?xml version="1.0"?>
+<clickhouse>
+    <logger>
+        <level>debug</level>
+        <log>/var/log/clickhouse-server/clickhouse-server.log</log>
+        <errorlog>/var/log/clickhouse-server/clickhouse-server.err.log</errorlog>
+        <size>1000M</size>
+        <count>10</count>
+    </logger>
+
+    <http_port>8123</http_port>
+    <tcp_port>9000</tcp_port>
+    <mysql_port>9004</mysql_port>
+    <postgresql_port>9005</postgresql_port>
+    <interserver_http_port>9009</interserver_http_port>
+
+    <listen_host>::</listen_host>
+    <listen_host>0.0.0.0</listen_host>
+
+    <max_connections>4096</max_connections>
+    <keep_alive_timeout>3</keep_alive_timeout>
+    <max_concurrent_queries>100</max_concurrent_queries>
+    <uncompressed_cache_size>8589934592</uncompressed_cache_size>
+    <mark_cache_size>5368709120</mark_cache_size>
+
+    <path>/var/lib/clickhouse/</path>
+    <tmp_path>/var/lib/clickhouse/tmp/</tmp_path>
+    <user_files_path>/var/lib/clickhouse/user_files/</user_files_path>
+    <users_config>users.xml</users_config>
+    <default_profile>default</default_profile>
+    <default_database>default</default_database>
+    <timezone>UTC</timezone>
+    <mlock_executable>false</mlock_executable>
+
+    <!-- Remote servers configuration for clustering -->
+    <remote_servers>
+        <arbitrage_cluster>
+            <shard>
+                <replica>
+                    <host>localhost</host>
+                    <port>9000</port>
+                </replica>
+            </shard>
+        </arbitrage_cluster>
+    </remote_servers>
+
+    <!-- Zookeeper configuration for replication -->
+    <zookeeper incl="zookeeper-servers" optional="true" />
+
+    <!-- Macros for replica identification -->
+    <macros>
+        <cluster>arbitrage_cluster</cluster>
+        <shard>01</shard>
+        <replica>01</replica>
+    </macros>
+
+    <!-- Storage policies for different data types -->
+    <storage_configuration>
+        <disks>
+            <default>
+                <path>/var/lib/clickhouse/</path>
+            </default>
+            <hot_disk>
+                <path>/var/lib/clickhouse/hot/</path>
+            </hot_disk>
+            <cold_disk>
+                <path>/var/lib/clickhouse/cold/</path>
+            </cold_disk>
+        </disks>
+        
+        <policies>
+            <tiered_storage>
+                <volumes>
+                    <hot>
+                        <disk>hot_disk</disk>
+                        <max_data_part_size_bytes>1073741824</max_data_part_size_bytes>
+                    </hot>
+                    <cold>
+                        <disk>cold_disk</disk>
+                    </cold>
+                </volumes>
+                <move_factor>0.1</move_factor>
+            </tiered_storage>
+        </policies>
+    </storage_configuration>
+
+    <!-- Compression settings -->
+    <compression>
+        <case>
+            <method>lz4</method>
+        </case>
+    </compression>
+
+    <!-- Query settings -->
+    <profiles>
+        <default>
+            <max_memory_usage>10000000000</max_memory_usage>
+            <use_uncompressed_cache>0</use_uncompressed_cache>
+            <load_balancing>random</load_balancing>
+            <max_execution_time>600</max_execution_time>
+            <max_query_size>1073741824</max_query_size>
+            <interactive_delay>100000</interactive_delay>
+            <connect_timeout>10</connect_timeout>
+            <receive_timeout>300</receive_timeout>
+            <send_timeout>300</send_timeout>
+            <queue_max_wait_ms>5000</queue_max_wait_ms>
+            <poll_interval>10</poll_interval>
+            <max_distributed_connections>1024</max_distributed_connections>
+            <max_query_size>268435456</max_query_size>
+            <max_ast_depth>1000</max_ast_depth>
+            <max_ast_elements>50000</max_ast_elements>
+            <readonly>0</readonly>
+            <max_rows_to_read>0</max_rows_to_read>
+            <max_bytes_to_read>0</max_bytes_to_read>
+            <max_rows_to_group_by>0</max_rows_to_group_by>
+            <max_rows_to_sort>0</max_rows_to_sort>
+            <max_bytes_before_external_group_by>0</max_bytes_before_external_group_by>
+            <max_bytes_before_external_sort>0</max_bytes_before_external_sort>
+            <max_result_rows>0</max_result_rows>
+            <max_result_bytes>0</max_result_bytes>
+            <result_overflow_mode>throw</result_overflow_mode>
+            <max_execution_time>0</max_execution_time>
+            <min_execution_speed>0</min_execution_speed>
+            <max_columns_to_read>0</max_columns_to_read>
+            <max_temporary_columns>0</max_temporary_columns>
+            <max_temporary_non_const_columns>0</max_temporary_non_const_columns>
+            <max_subquery_depth>100</max_subquery_depth>
+            <max_pipeline_depth>1000</max_pipeline_depth>
+            <max_ast_depth>1000</max_ast_depth>
+            <readonly>0</readonly>
+        </default>
+
+        <readonly>
+            <readonly>1</readonly>
+        </readonly>
+
+        <analytics>
+            <max_memory_usage>20000000000</max_memory_usage>
+            <max_execution_time>1800</max_execution_time>
+            <max_query_size>2147483648</max_query_size>
+        </analytics>
+    </profiles>
+
+    <!-- User quotas -->
+    <quotas>
+        <default>
+            <interval>
+                <duration>3600</duration>
+                <queries>0</queries>
+                <errors>0</errors>
+                <result_rows>0</result_rows>
+                <read_rows>0</read_rows>
+                <execution_time>0</execution_time>
+            </interval>
+        </default>
+    </quotas>
+
+    <!-- Format schemas -->
+    <format_schema_path>/var/lib/clickhouse/format_schemas/</format_schema_path>
+
+    <!-- Query log settings -->
+    <query_log>
+        <database>system</database>
+        <table>query_log</table>
+        <flush_interval_milliseconds>7500</flush_interval_milliseconds>
+        <max_size_rows>1048576</max_size_rows>
+        <max_table_size_drop_threshold>0.5</max_table_size_drop_threshold>
+    </query_log>
+
+    <!-- Trace log settings -->
+    <trace_log>
+        <database>system</database>
+        <table>trace_log</table>
+        <flush_interval_milliseconds>7500</flush_interval_milliseconds>
+        <max_size_rows>1048576</max_size_rows>
+    </trace_log>
+
+    <!-- Metric log settings -->
+    <metric_log>
+        <database>system</database>
+        <table>metric_log</table>
+        <flush_interval_milliseconds>7500</flush_interval_milliseconds>
+        <collect_interval_milliseconds>1000</collect_interval_milliseconds>
+    </metric_log>
+
+    <!-- Asynchronous metric log -->
+    <asynchronous_metric_log>
+        <database>system</database>
+        <table>asynchronous_metric_log</table>
+        <flush_interval_milliseconds>60000</flush_interval_milliseconds>
+    </asynchronous_metric_log>
+
+    <!-- OpenTelemetry integration -->
+    <opentelemetry>
+        <trace_processors>
+            <batch>
+                <endpoint>http://jaeger:14268/api/traces</endpoint>
+            </batch>
+        </trace_processors>
+    </opentelemetry>
+
+    <!-- Built-in dictionaries -->
+    <dictionaries_config>*_dictionary.xml</dictionaries_config>
+
+    <!-- Geo dictionaries -->
+    <path_to_regions_hierarchy_file>/var/lib/clickhouse/regions_hierarchy.txt</path_to_regions_hierarchy_file>
+    <path_to_regions_names_files>/var/lib/clickhouse/regions_names_</path_to_regions_names_files>
+
+    <!-- Network settings -->
+    <max_server_memory_usage>0</max_server_memory_usage>
+    <max_server_memory_usage_to_ram_ratio>0.9</max_server_memory_usage_to_ram_ratio>
+    <max_concurrent_queries>100</max_concurrent_queries>
+    <max_connections>1024</max_connections>
+    <keep_alive_timeout>3</keep_alive_timeout>
+    <tcp_port_secure>9440</tcp_port_secure>
+    <https_port>8443</https_port>
+
+    <!-- SSL settings -->
+    <openSSL>
+        <server>
+            <certificateFile>/etc/clickhouse-server/server.crt</certificateFile>
+            <privateKeyFile>/etc/clickhouse-server/server.key</privateKeyFile>
+            <dhParamsFile>/etc/clickhouse-server/dhparam.pem</dhParamsFile>
+            <verificationMode>none</verificationMode>
+            <loadDefaultCAFile>true</loadDefaultCAFile>
+            <cacheSessions>true</cacheSessions>
+            <disableProtocols>sslv2,sslv3</disableProtocols>
+            <preferServerCiphers>true</preferServerCiphers>
+        </server>
+        <client>
+            <loadDefaultCAFile>true</loadDefaultCAFile>
+            <cacheSessions>true</cacheSessions>
+            <disableProtocols>sslv2,sslv3</disableProtocols>
+            <preferServerCiphers>true</preferServerCiphers>
+            <verificationMode>none</verificationMode>
+            <invalidCertificateHandler>
+                <name>RejectCertificateHandler</name>
+            </invalidCertificateHandler>
+        </client>
+    </openSSL>
+
+    <!-- Prometheus integration -->
+    <prometheus>
+        <endpoint>/metrics</endpoint>
+        <port>9363</port>
+        <metrics>true</metrics>
+        <events>true</events>
+        <asynchronous_metrics>true</asynchronous_metrics>
+    </prometheus>
+
+</clickhouse>
+

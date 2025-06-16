@@ -1,0 +1,129 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    cluster: 'arbitrage-system'
+    replica: 'prometheus-01'
+
+rule_files:
+  - "rules/*.yml"
+
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets:
+          - alertmanager:9093
+
+scrape_configs:
+  # Prometheus self-monitoring
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+    scrape_interval: 5s
+    metrics_path: /metrics
+
+  # System metrics
+  - job_name: 'node-exporter'
+    static_configs:
+      - targets: ['node-exporter:9100']
+    scrape_interval: 5s
+
+  # Container metrics
+  - job_name: 'cadvisor'
+    static_configs:
+      - targets: ['cadvisor:8080']
+    scrape_interval: 5s
+
+  # Application metrics - Trading System
+  - job_name: 'arbitrage-system'
+    static_configs:
+      - targets: ['host.docker.internal:8000']  # Main API
+    scrape_interval: 5s
+    metrics_path: /metrics
+    scrape_timeout: 10s
+
+  # Trading strategies metrics
+  - job_name: 'trading-strategies'
+    static_configs:
+      - targets: ['host.docker.internal:8001']  # Strategy service
+    scrape_interval: 2s  # High frequency for trading metrics
+    metrics_path: /metrics
+
+  # Risk management metrics
+  - job_name: 'risk-management'
+    static_configs:
+      - targets: ['host.docker.internal:8002']  # Risk service
+    scrape_interval: 1s  # Critical for risk monitoring
+    metrics_path: /metrics
+
+  # Exchange connectors
+  - job_name: 'exchange-connectors'
+    static_configs:
+      - targets: 
+        - 'host.docker.internal:8010'  # Binance
+        - 'host.docker.internal:8011'  # Coinbase
+        - 'host.docker.internal:8012'  # Kraken
+        - 'host.docker.internal:8013'  # FTX
+    scrape_interval: 2s
+    metrics_path: /metrics
+
+  # Portfolio management
+  - job_name: 'portfolio-manager'
+    static_configs:
+      - targets: ['host.docker.internal:8020']
+    scrape_interval: 5s
+    metrics_path: /metrics
+
+  # ML/AI optimization engine
+  - job_name: 'ml-optimization'
+    static_configs:
+      - targets: ['host.docker.internal:8030']
+    scrape_interval: 10s
+    metrics_path: /metrics
+
+  # Database metrics
+  - job_name: 'postgres-exporter'
+    static_configs:
+      - targets: ['host.docker.internal:9187']
+    scrape_interval: 15s
+
+  # Redis metrics
+  - job_name: 'redis-exporter'
+    static_configs:
+      - targets: ['host.docker.internal:9121']
+    scrape_interval: 15s
+
+  # Airflow metrics
+  - job_name: 'airflow'
+    static_configs:
+      - targets: ['host.docker.internal:8080']
+    scrape_interval: 30s
+    metrics_path: /admin/metrics
+
+  # Custom business metrics
+  - job_name: 'business-metrics'
+    static_configs:
+      - targets: ['host.docker.internal:9999']
+    scrape_interval: 5s
+    metrics_path: /business-metrics
+
+  # Security monitoring
+  - job_name: 'security-metrics'
+    static_configs:
+      - targets: ['host.docker.internal:9998']
+    scrape_interval: 10s
+    metrics_path: /security-metrics
+
+# Remote write for long-term storage
+remote_write:
+  - url: "http://clickhouse:8123/api/v1/write"
+    queue_config:
+      max_samples_per_send: 10000
+      max_shards: 200
+      capacity: 100000
+
+# Remote read for querying historical data
+remote_read:
+  - url: "http://clickhouse:8123/api/v1/read"
+    read_recent: true
+

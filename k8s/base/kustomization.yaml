@@ -1,0 +1,20 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+- rollout.yaml
+- service.yaml
+- ingress.yaml
+- analysistemplate.yaml
+- feature-flags.yaml
+
+commonLabels:
+  app.kubernetes.io/name: arbitrage-app
+  app.kubernetes.io/part-of: ultimate-arbitrage-system
+
+namespace: arbitrage
+
+images:
+- name: ghcr.io/ultimate-arbitrage/arbitrage-app
+  newTag: latest
+

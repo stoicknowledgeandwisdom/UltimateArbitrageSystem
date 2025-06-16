@@ -1,0 +1,317 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [main, develop, staging]
+  pull_request:
+    branches: [main, develop]
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Target environment'
+        required: true
+        default: 'dev'
+        type: choice
+        options:
+        - dev
+        - staging
+        - prod
+      canary_percentage:
+        description: 'Canary deployment percentage'
+        required: false
+        default: '1'
+        type: choice
+        options:
+        - '1'
+        - '5'
+        - '25'
+        - '100'
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+  TERRAFORM_VERSION: 1.6.0
+  TERRAGRUNT_VERSION: 0.53.0
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+        cache: 'npm'
+    
+    - name: Install dependencies
+      run: npm ci
+    
+    - name: Run tests
+      run: npm test
+    
+    - name: Run security audit
+      run: npm audit --audit-level high
+    
+    - name: Code coverage
+      run: npm run coverage
+    
+    - name: Upload coverage to Codecov
+      uses: codecov/codecov-action@v3
+
+  security-scan:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Run Trivy vulnerability scanner
+      uses: aquasecurity/trivy-action@master
+      with:
+        scan-type: 'fs'
+        scan-ref: '.'
+        format: 'sarif'
+        output: 'trivy-results.sarif'
+    
+    - name: Upload Trivy scan results to GitHub Security tab
+      uses: github/codeql-action/upload-sarif@v2
+      with:
+        sarif_file: 'trivy-results.sarif'
+
+  build:
+    needs: [test, security-scan]
+    runs-on: ubuntu-latest
+    outputs:
+      image-digest: ${{ steps.container-build.outputs.digest }}
+      image-uri: ${{ steps.container-build.outputs.image }}
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+    
+    - name: Log in to Container Registry
+      uses: docker/login-action@v3
+      with:
+        registry: ${{ env.REGISTRY }}
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+    
+    - name: Extract metadata
+      id: meta
+      uses: docker/metadata-action@v5
+      with:
+        images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+        tags: |
+          type=ref,event=branch
+          type=ref,event=pr
+          type=sha,prefix={{branch}}-
+          type=raw,value=latest,enable={{is_default_branch}}
+    
+    - name: Build and push container image
+      id: container-build
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        push: true
+        tags: ${{ steps.meta.outputs.tags }}
+        labels: ${{ steps.meta.outputs.labels }}
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+        platforms: linux/amd64,linux/arm64
+
+  infrastructure:
+    needs: build
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        environment: [dev, staging, prod]
+    environment: ${{ matrix.environment }}
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Setup Terraform
+      uses: hashicorp/setup-terraform@v3
+      with:
+        terraform_version: ${{ env.TERRAFORM_VERSION }}
+    
+    - name: Setup Terragrunt
+      run: |
+        wget https://github.com/gruntwork-io/terragrunt/releases/download/v${{ env.TERRAGRUNT_VERSION }}/terragrunt_linux_amd64
+        chmod +x terragrunt_linux_amd64
+        sudo mv terragrunt_linux_amd64 /usr/local/bin/terragrunt
+    
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: us-west-2
+    
+    - name: Terragrunt Plan
+      working-directory: infrastructure/environments/${{ matrix.environment }}
+      run: terragrunt plan -out=tfplan
+    
+    - name: Terragrunt Apply
+      if: github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'
+      working-directory: infrastructure/environments/${{ matrix.environment }}
+      run: terragrunt apply tfplan
+
+  deploy:
+    needs: [build, infrastructure]
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        environment: [dev, staging, prod]
+        region: [us-west-2, eu-west-1, ap-southeast-1]
+    environment: ${{ matrix.environment }}
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Setup kubectl
+      uses: azure/setup-kubectl@v3
+      with:
+        version: 'v1.28.0'
+    
+    - name: Configure kubectl
+      run: |
+        aws eks update-kubeconfig --region ${{ matrix.region }} --name arbitrage-${{ matrix.environment }}-${{ matrix.region }}
+      env:
+        AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+    
+    - name: Update ArgoCD Application
+      run: |
+        cat <<EOF > argocd-app-${{ matrix.environment }}-${{ matrix.region }}.yaml
+        apiVersion: argoproj.io/v1alpha1
+        kind: Application
+        metadata:
+          name: arbitrage-app-${{ matrix.environment }}-${{ matrix.region }}
+          namespace: argocd
+        spec:
+          project: default
+          source:
+            repoURL: ${{ github.repositoryUrl }}
+            targetRevision: ${{ github.sha }}
+            path: k8s/overlays/${{ matrix.environment }}
+            helm:
+              valueFiles:
+              - values-${{ matrix.region }}.yaml
+              parameters:
+              - name: image.tag
+                value: ${{ github.sha }}
+              - name: canary.percentage
+                value: "${{ github.event.inputs.canary_percentage || '1' }}"
+          destination:
+            server: https://kubernetes.default.svc
+            namespace: arbitrage-${{ matrix.environment }}
+          syncPolicy:
+            automated:
+              prune: true
+              selfHeal: true
+            syncOptions:
+            - CreateNamespace=true
+            - PrunePropagationPolicy=foreground
+        EOF
+        kubectl apply -f argocd-app-${{ matrix.environment }}-${{ matrix.region }}.yaml
+
+  database-migration:
+    needs: infrastructure
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        environment: [dev, staging, prod]
+    environment: ${{ matrix.environment }}
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Setup Java
+      uses: actions/setup-java@v4
+      with:
+        distribution: 'temurin'
+        java-version: '17'
+    
+    - name: Download Liquibase
+      run: |
+        wget https://github.com/liquibase/liquibase/releases/download/v4.24.0/liquibase-4.24.0.tar.gz
+        tar -xzf liquibase-4.24.0.tar.gz
+        chmod +x liquibase
+    
+    - name: Database Backup
+      run: |
+        DB_URL=$(aws ssm get-parameter --name "/arbitrage/${{ matrix.environment }}/database/url" --with-decryption --query 'Parameter.Value' --output text)
+        DB_USER=$(aws ssm get-parameter --name "/arbitrage/${{ matrix.environment }}/database/user" --with-decryption --query 'Parameter.Value' --output text)
+        DB_PASS=$(aws ssm get-parameter --name "/arbitrage/${{ matrix.environment }}/database/password" --with-decryption --query 'Parameter.Value' --output text)
+        
+        # Create backup
+        BACKUP_NAME="backup-$(date +%Y%m%d-%H%M%S)-${{ github.sha }}"
+        aws rds create-db-snapshot --db-instance-identifier arbitrage-${{ matrix.environment }} --db-snapshot-identifier $BACKUP_NAME
+        
+        # Wait for backup to complete
+        aws rds wait db-snapshot-completed --db-snapshot-identifier $BACKUP_NAME
+        echo "BACKUP_NAME=$BACKUP_NAME" >> $GITHUB_ENV
+      env:
+        AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        AWS_DEFAULT_REGION: us-west-2
+    
+    - name: Run Database Migration
+      run: |
+        DB_URL=$(aws ssm get-parameter --name "/arbitrage/${{ matrix.environment }}/database/url" --with-decryption --query 'Parameter.Value' --output text)
+        DB_USER=$(aws ssm get-parameter --name "/arbitrage/${{ matrix.environment }}/database/user" --with-decryption --query 'Parameter.Value' --output text)
+        DB_PASS=$(aws ssm get-parameter --name "/arbitrage/${{ matrix.environment }}/database/password" --with-decryption --query 'Parameter.Value' --output text)
+        
+        ./liquibase \
+          --url="$DB_URL" \
+          --username="$DB_USER" \
+          --password="$DB_PASS" \
+          --changeLogFile=database/changelog.xml \
+          update
+      env:
+        AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        AWS_DEFAULT_REGION: us-west-2
+    
+    - name: Verify Migration
+      run: |
+        DB_URL=$(aws ssm get-parameter --name "/arbitrage/${{ matrix.environment }}/database/url" --with-decryption --query 'Parameter.Value' --output text)
+        DB_USER=$(aws ssm get-parameter --name "/arbitrage/${{ matrix.environment }}/database/user" --with-decryption --query 'Parameter.Value' --output text)
+        DB_PASS=$(aws ssm get-parameter --name "/arbitrage/${{ matrix.environment }}/database/password" --with-decryption --query 'Parameter.Value' --output text)
+        
+        ./liquibase \
+          --url="$DB_URL" \
+          --username="$DB_USER" \
+          --password="$DB_PASS" \
+          --changeLogFile=database/changelog.xml \
+          status
+      env:
+        AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        AWS_DEFAULT_REGION: us-west-2
+
+  rollback-on-failure:
+    needs: [deploy, database-migration]
+    runs-on: ubuntu-latest
+    if: failure()
+    strategy:
+      matrix:
+        environment: [dev, staging, prod]
+        region: [us-west-2, eu-west-1, ap-southeast-1]
+    steps:
+    - name: Rollback Application
+      run: |
+        kubectl rollout undo deployment/arbitrage-app -n arbitrage-${{ matrix.environment }}
+        kubectl rollout status deployment/arbitrage-app -n arbitrage-${{ matrix.environment }} --timeout=300s
+    
+    - name: Rollback Database (if needed)
+      if: needs.database-migration.result == 'failure'
+      run: |
+        # Restore from backup created earlier
+        aws rds restore-db-instance-from-db-snapshot \
+          --db-instance-identifier arbitrage-${{ matrix.environment }}-rollback \
+          --db-snapshot-identifier ${{ env.BACKUP_NAME }}
+      env:
+        AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        AWS_DEFAULT_REGION: us-west-2
+

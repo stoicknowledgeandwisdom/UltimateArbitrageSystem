@@ -1,0 +1,86 @@
+apiVersion: argoproj.io/v1alpha1
+kind: AnalysisTemplate
+metadata:
+  name: success-rate
+spec:
+  args:
+  - name: service-name
+  - name: prometheus-port
+    value: "9090"
+  metrics:
+  - name: success-rate
+    initialDelay: 60s
+    interval: 60s
+    count: 5
+    successCondition: result[0] >= 0.95
+    failureCondition: result[0] < 0.95
+    provider:
+      prometheus:
+        address: http://prometheus.monitoring.svc.cluster.local:{{args.prometheus-port}}
+        query: |
+          sum(irate(
+            istio_requests_total{reporter="destination",destination_service_name="{{args.service-name}}",response_code!~"5.*"}[2m]
+          )) / 
+          sum(irate(
+            istio_requests_total{reporter="destination",destination_service_name="{{args.service-name}}"}[2m]
+          ))
+  - name: avg-response-time
+    initialDelay: 60s
+    interval: 60s
+    count: 5
+    successCondition: result[0] < 1000
+    failureCondition: result[0] >= 1000
+    provider:
+      prometheus:
+        address: http://prometheus.monitoring.svc.cluster.local:{{args.prometheus-port}}
+        query: |
+          sum(irate(
+            istio_request_duration_milliseconds_sum{reporter="destination",destination_service_name="{{args.service-name}}"}[2m]
+          )) / 
+          sum(irate(
+            istio_request_duration_milliseconds_count{reporter="destination",destination_service_name="{{args.service-name}}"}[2m]
+          ))
+  - name: error-rate
+    initialDelay: 60s
+    interval: 60s
+    count: 5
+    successCondition: result[0] <= 0.05
+    failureCondition: result[0] > 0.05
+    provider:
+      prometheus:
+        address: http://prometheus.monitoring.svc.cluster.local:{{args.prometheus-port}}
+        query: |
+          sum(irate(
+            istio_requests_total{reporter="destination",destination_service_name="{{args.service-name}}",response_code=~"5.*"}[2m]
+          )) / 
+          sum(irate(
+            istio_requests_total{reporter="destination",destination_service_name="{{args.service-name}}"}[2m]
+          ))
+---
+apiVersion: argoproj.io/v1alpha1
+kind: AnalysisTemplate
+metadata:
+  name: error-budget-analysis
+spec:
+  args:
+  - name: service-name
+  - name: error-budget-threshold
+    value: "0.1"  # 10% error budget
+  metrics:
+  - name: error-budget-consumption
+    initialDelay: 30s
+    interval: 30s
+    count: 10
+    successCondition: result[0] <= {{args.error-budget-threshold}}
+    failureCondition: result[0] > {{args.error-budget-threshold}}
+    provider:
+      prometheus:
+        address: http://prometheus.monitoring.svc.cluster.local:9090
+        query: |
+          (sum(increase(
+            istio_requests_total{reporter="destination",destination_service_name="{{args.service-name}}",response_code=~"5.*"}[5m]
+          )) or vector(0)) / 
+          (sum(increase(
+            istio_requests_total{reporter="destination",destination_service_name="{{args.service-name}}"}[5m]
+          )) or vector(1))
+

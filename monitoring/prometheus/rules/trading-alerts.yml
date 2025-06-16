@@ -1,0 +1,192 @@
+groups:
+  - name: trading_system_alerts
+    rules:
+      # Critical Trading Alerts
+      - alert: HighLatencyAlert
+        expr: histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket[2m])) by (le)) > 0.5
+        for: 30s
+        labels:
+          severity: critical
+          service: trading
+        annotations:
+          summary: "High latency detected in trading system"
+          description: "95th percentile latency is {{ $value }}s, which exceeds 500ms threshold"
+
+      - alert: LowFillRateAlert
+        expr: (sum(rate(orders_filled_total[5m])) / sum(rate(orders_placed_total[5m]))) < 0.8
+        for: 1m
+        labels:
+          severity: critical
+          service: trading
+        annotations:
+          summary: "Low order fill rate detected"
+          description: "Fill rate is {{ $value | humanizePercentage }}, below 80% threshold"
+
+      - alert: PnLDrawdownAlert
+        expr: (current_pnl - max_over_time(current_pnl[1h])) / max_over_time(current_pnl[1h]) < -0.05
+        for: 2m
+        labels:
+          severity: critical
+          service: trading
+        annotations:
+          summary: "Significant PnL drawdown detected"
+          description: "Current drawdown is {{ $value | humanizePercentage }} from 1h high"
+
+      - alert: MarginUtilizationHigh
+        expr: margin_used / margin_available > 0.85
+        for: 1m
+        labels:
+          severity: warning
+          service: risk
+        annotations:
+          summary: "High margin utilization"
+          description: "Margin utilization at {{ $value | humanizePercentage }}, approaching limit"
+
+      - alert: ArbitrageOpportunityMissed
+        expr: increase(arbitrage_opportunities_total[5m]) > 0 and increase(arbitrage_executed_total[5m]) == 0
+        for: 30s
+        labels:
+          severity: warning
+          service: arbitrage
+        annotations:
+          summary: "Arbitrage opportunities not being executed"
+          description: "{{ $value }} opportunities detected but none executed in last 5 minutes"
+
+      # System Health Alerts
+      - alert: ExchangeConnectivityLoss
+        expr: up{job="exchange-connectors"} == 0
+        for: 15s
+        labels:
+          severity: critical
+          service: connectivity
+        annotations:
+          summary: "Exchange connectivity lost"
+          description: "Lost connection to {{ $labels.instance }} exchange"
+
+      - alert: HighErrorRate
+        expr: sum(rate(http_requests_total{status=~"5.."}[5m])) / sum(rate(http_requests_total[5m])) > 0.05
+        for: 1m
+        labels:
+          severity: critical
+          service: api
+        annotations:
+          summary: "High error rate detected"
+          description: "Error rate is {{ $value | humanizePercentage }}, above 5% threshold"
+
+      - alert: DatabaseConnectionFailure
+        expr: up{job="postgres-exporter"} == 0
+        for: 30s
+        labels:
+          severity: critical
+          service: database
+        annotations:
+          summary: "Database connection failure"
+          description: "Cannot connect to PostgreSQL database"
+
+      # Resource Alerts
+      - alert: HighCPUUsage
+        expr: 100 - (avg by(instance) (irate(node_cpu_seconds_total{mode="idle"}[5m])) * 100) > 80
+        for: 2m
+        labels:
+          severity: warning
+          service: system
+        annotations:
+          summary: "High CPU usage"
+          description: "CPU usage is {{ $value }}% on {{ $labels.instance }}"
+
+      - alert: HighMemoryUsage
+        expr: (1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100 > 85
+        for: 2m
+        labels:
+          severity: warning
+          service: system
+        annotations:
+          summary: "High memory usage"
+          description: "Memory usage is {{ $value }}% on {{ $labels.instance }}"
+
+      - alert: DiskSpaceLow
+        expr: (node_filesystem_avail_bytes / node_filesystem_size_bytes) * 100 < 10
+        for: 1m
+        labels:
+          severity: critical
+          service: system
+        annotations:
+          summary: "Low disk space"
+          description: "Disk space is {{ $value }}% available on {{ $labels.instance }}"
+
+      # Business KPI Alerts
+      - alert: DailyPnLTarget
+        expr: daily_pnl < daily_pnl_target * 0.5
+        for: 5m
+        labels:
+          severity: warning
+          service: business
+        annotations:
+          summary: "Daily PnL below target"
+          description: "Current daily PnL {{ $value }} is below 50% of target"
+
+      - alert: VolumeAnomalyDetected
+        expr: abs(trading_volume_1h - avg_over_time(trading_volume_1h[24h])) / stddev_over_time(trading_volume_1h[24h]) > 3
+        for: 5m
+        labels:
+          severity: warning
+          service: anomaly
+        annotations:
+          summary: "Trading volume anomaly detected"
+          description: "Current volume deviates {{ $value }}σ from 24h average"
+
+  - name: slo_alerts
+    rules:
+      # SLO-based alerts with error budgets
+      - alert: APIAvailabilitySLOBreach
+        expr: |
+          (
+            sum(rate(http_requests_total{job="arbitrage-system"}[30d])) -
+            sum(rate(http_requests_total{job="arbitrage-system",status=~"5.."}[30d]))
+          ) / sum(rate(http_requests_total{job="arbitrage-system"}[30d])) < 0.999
+        for: 5m
+        labels:
+          severity: critical
+          service: slo
+          slo_type: availability
+        annotations:
+          summary: "API availability SLO breach"
+          description: "30-day availability is {{ $value | humanizePercentage }}, below 99.9% SLO"
+
+      - alert: LatencySLOBreach
+        expr: histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket{job="arbitrage-system"}[30d])) by (le)) > 0.2
+        for: 5m
+        labels:
+          severity: critical
+          service: slo
+          slo_type: latency
+        annotations:
+          summary: "Latency SLO breach"
+          description: "30-day 95th percentile latency is {{ $value }}s, above 200ms SLO"
+
+      - alert: ErrorBudgetBurnRateFast
+        expr: |
+          sum(rate(http_requests_total{job="arbitrage-system",status=~"5.."}[1h])) /
+          sum(rate(http_requests_total{job="arbitrage-system"}[1h])) > 0.14 * 0.001
+        for: 2m
+        labels:
+          severity: critical
+          service: slo
+          burn_rate: fast
+        annotations:
+          summary: "Fast error budget burn rate"
+          description: "Error budget burning at {{ $value | humanizePercentage }}/hour"
+
+      - alert: ErrorBudgetBurnRateSlow
+        expr: |
+          sum(rate(http_requests_total{job="arbitrage-system",status=~"5.."}[6h])) /
+          sum(rate(http_requests_total{job="arbitrage-system"}[6h])) > 0.01 * 0.001
+        for: 15m
+        labels:
+          severity: warning
+          service: slo
+          burn_rate: slow
+        annotations:
+          summary: "Slow error budget burn rate"
+          description: "Error budget burning at {{ $value | humanizePercentage }}/6h"
+

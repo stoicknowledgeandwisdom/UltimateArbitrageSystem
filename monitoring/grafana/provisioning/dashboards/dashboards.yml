@@ -1,0 +1,51 @@
+apiVersion: 1
+
+providers:
+  - name: 'Arbitrage System Dashboards'
+    orgId: 1
+    folder: 'Arbitrage System'
+    folderUid: arbitrage
+    type: file
+    disableDeletion: false
+    editable: true
+    updateIntervalSeconds: 10
+    allowUiUpdates: true
+    options:
+      path: /var/lib/grafana/dashboards
+
+  - name: 'Trading Dashboards'
+    orgId: 1
+    folder: 'Trading'
+    folderUid: trading
+    type: file
+    disableDeletion: false
+    editable: true
+    updateIntervalSeconds: 10
+    allowUiUpdates: true
+    options:
+      path: /var/lib/grafana/dashboards/trading
+
+  - name: 'Security Dashboards'
+    orgId: 1
+    folder: 'Security'
+    folderUid: security
+    type: file
+    disableDeletion: false
+    editable: true
+    updateIntervalSeconds: 10
+    allowUiUpdates: true
+    options:
+      path: /var/lib/grafana/dashboards/security
+
+  - name: 'Infrastructure Dashboards'
+    orgId: 1
+    folder: 'Infrastructure'
+    folderUid: infrastructure
+    type: file
+    disableDeletion: false
+    editable: true
+    updateIntervalSeconds: 10
+    allowUiUpdates: true
+    options:
+      path: /var/lib/grafana/dashboards/infrastructure
+

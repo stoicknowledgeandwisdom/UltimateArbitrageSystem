@@ -1,0 +1,164 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: error-budget-monitor
+  namespace: monitoring
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: error-budget-monitor
+rules:
+- apiGroups: ["argoproj.io"]
+  resources: ["rollouts", "analysisruns"]
+  verbs: ["get", "list", "watch", "patch", "update"]
+- apiGroups: ["apps"]
+  resources: ["deployments"]
+  verbs: ["get", "list", "watch", "patch", "update"]
+- apiGroups: [""]
+  resources: ["pods", "services"]
+  verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: error-budget-monitor
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: error-budget-monitor
+subjects:
+- kind: ServiceAccount
+  name: error-budget-monitor
+  namespace: monitoring
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: error-budget-monitor
+  namespace: monitoring
+  labels:
+    app: error-budget-monitor
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: error-budget-monitor
+  template:
+    metadata:
+      labels:
+        app: error-budget-monitor
+    spec:
+      serviceAccountName: error-budget-monitor
+      containers:
+      - name: monitor
+        image: alpine:latest
+        command: ["/bin/sh"]
+        args:
+        - -c
+        - |
+          apk add --no-cache curl jq kubectl
+          
+          while true; do
+            echo "Checking error budget..."
+            
+            # Query Prometheus for error rate
+            ERROR_RATE=$(curl -s "http://prometheus.monitoring.svc.cluster.local:9090/api/v1/query?query=sum(rate(istio_requests_total{response_code=~\"5.*\"}[5m]))/sum(rate(istio_requests_total[5m]))" | jq -r '.data.result[0].value[1] // "0"')
+            
+            echo "Current error rate: $ERROR_RATE"
+            
+            # Error budget threshold (1% = 0.01)
+            THRESHOLD="0.01"
+            
+            # Compare error rate with threshold
+            if [ "$(echo "$ERROR_RATE > $THRESHOLD" | bc -l 2>/dev/null || echo "0")" = "1" ]; then
+              echo "ERROR BUDGET BREACH DETECTED! Error rate: $ERROR_RATE exceeds threshold: $THRESHOLD"
+              
+              # Check if there's an active rollout
+              ROLLOUT=$(kubectl get rollouts -n arbitrage arbitrage-app -o json 2>/dev/null || echo "{}")
+              ROLLOUT_STATUS=$(echo "$ROLLOUT" | jq -r '.status.phase // "NotFound"')
+              
+              if [ "$ROLLOUT_STATUS" = "Progressing" ]; then
+                echo "Active rollout detected. Initiating automatic rollback..."
+                
+                # Abort the rollout
+                kubectl argo rollouts abort arbitrage-app -n arbitrage
+                
+                # Rollback to previous version
+                kubectl argo rollouts undo arbitrage-app -n arbitrage
+                
+                # Send alert to monitoring system
+                curl -X POST "http://alertmanager.monitoring.svc.cluster.local:9093/api/v1/alerts" \
+                  -H "Content-Type: application/json" \
+                  -d '[{
+                    "labels": {
+                      "alertname": "ErrorBudgetBreach",
+                      "severity": "critical",
+                      "service": "arbitrage-app",
+                      "error_rate": "'$ERROR_RATE'"
+                    },
+                    "annotations": {
+                      "summary": "Error budget breach detected - automatic rollback initiated",
+                      "description": "Error rate '$ERROR_RATE' exceeded threshold '$THRESHOLD'. Rollback has been automatically triggered."
+                    }
+                  }]'
+                  
+                echo "Rollback initiated. Waiting 5 minutes before next check..."
+                sleep 300
+              else
+                echo "No active rollout. Sending alert only..."
+                
+                # Send alert without rollback
+                curl -X POST "http://alertmanager.monitoring.svc.cluster.local:9093/api/v1/alerts" \
+                  -H "Content-Type: application/json" \
+                  -d '[{
+                    "labels": {
+                      "alertname": "ErrorBudgetBreach",
+                      "severity": "warning",
+                      "service": "arbitrage-app",
+                      "error_rate": "'$ERROR_RATE'"
+                    },
+                    "annotations": {
+                      "summary": "Error budget breach detected",
+                      "description": "Error rate '$ERROR_RATE' exceeded threshold '$THRESHOLD'. No active deployment to rollback."
+                    }
+                  }]'
+              fi
+            else
+              echo "Error rate within acceptable limits"
+            fi
+            
+            # Check again in 30 seconds
+            sleep 30
+          done
+        env:
+        - name: PROMETHEUS_URL
+          value: "http://prometheus.monitoring.svc.cluster.local:9090"
+        - name: ALERTMANAGER_URL
+          value: "http://alertmanager.monitoring.svc.cluster.local:9093"
+        - name: ERROR_BUDGET_THRESHOLD
+          value: "0.01"  # 1%
+        resources:
+          limits:
+            cpu: 100m
+            memory: 128Mi
+          requests:
+            cpu: 50m
+            memory: 64Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: error-budget-monitor
+  namespace: monitoring
+  labels:
+    app: error-budget-monitor
+spec:
+  selector:
+    app: error-budget-monitor
+  ports:
+  - name: http
+    port: 8080
+    targetPort: 8080
+  type: ClusterIP
+
