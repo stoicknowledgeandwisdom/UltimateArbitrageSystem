@@ -59,7 +59,11 @@ The **Ultimate Arbitrage System** is a revolutionary, production-ready platform 
 
 ---
 
-## 🚀 **Quick Start - Get Running in 2 Minutes**
+## 🚀 **Quick Start - Get Trading in 30 Minutes**
+
+### **📋 New User? Start Here!**
+- **[QUICK_START_GUIDE.md](QUICK_START_GUIDE.md)** - Zero to profitable trading in 30 minutes
+- **[STRATEGIC_ROADMAP.md](STRATEGIC_ROADMAP.md)** - Complete business plan for scaling to enterprise
 
 ### **Method 1: One-Click Launch** ⚡
 ```bash
