@@ -1,0 +1,184 @@
+# Ultimate Arbitrage System - Production Trading Configuration
+# ==========================================================
+# 
+# SECURITY NOTICE: Never commit API keys to version control!
+# Use environment variables or secure key management for production.
+
+version: "2.0"
+last_updated: "2025-06-17"
+
+# Trading Environment
+trading:
+  mode: "paper"  # Options: paper, live
+  environment: "production"
+  timezone: "UTC"
+  base_currency: "USD"
+  
+  # Risk Management
+  risk_management:
+    max_position_size: 10000  # USD
+    max_daily_loss: 5000      # USD
+    max_drawdown: 0.15        # 15%
+    position_size_percent: 0.02  # 2% of portfolio per trade
+    stop_loss_percent: 0.05   # 5% stop loss
+    take_profit_percent: 0.10 # 10% take profit
+    
+  # Portfolio Settings
+  portfolio:
+    initial_capital: 100000   # USD
+    min_trade_size: 100       # USD
+    max_open_positions: 10
+    rebalance_frequency: "daily"
+    
+# Exchange Configuration
+exchanges:
+  binance:
+    enabled: true
+    api_key_env: "BINANCE_API_KEY"      # Environment variable name
+    api_secret_env: "BINANCE_API_SECRET" # Environment variable name
+    sandbox: true  # Use testnet for paper trading
+    rate_limit: 1200  # requests per minute
+    
+  coinbase:
+    enabled: true
+    api_key_env: "COINBASE_API_KEY"
+    api_secret_env: "COINBASE_API_SECRET"
+    passphrase_env: "COINBASE_PASSPHRASE"
+    sandbox: true
+    rate_limit: 600
+    
+  kraken:
+    enabled: false  # Enable when ready
+    api_key_env: "KRAKEN_API_KEY"
+    api_secret_env: "KRAKEN_API_SECRET"
+    rate_limit: 300
+
+# Trading Strategies
+strategies:
+  arbitrage:
+    enabled: true
+    min_profit_threshold: 0.005  # 0.5% minimum profit
+    max_execution_time: 30       # seconds
+    symbols:
+      - "BTC/USD"
+      - "ETH/USD"
+      - "BNB/USD"
+      
+  market_making:
+    enabled: true
+    spread_percentage: 0.002     # 0.2% spread
+    order_refresh_time: 60       # seconds
+    max_inventory: 0.1           # 10% of portfolio
+    
+  momentum:
+    enabled: true
+    lookback_period: 24          # hours
+    momentum_threshold: 0.03     # 3% price movement
+    
+# AI/ML Configuration
+ai_ml:
+  model_update_frequency: "hourly"
+  feature_engineering:
+    technical_indicators: true
+    market_sentiment: true
+    order_book_analysis: true
+    
+  quantum_optimization:
+    enabled: true
+    optimization_interval: 300   # seconds
+    max_iterations: 1000
+    
+  reinforcement_learning:
+    enabled: true
+    exploration_rate: 0.1
+    learning_rate: 0.001
+
+# Monitoring and Alerts
+monitoring:
+  real_time_dashboard: true
+  performance_tracking: true
+  
+  alerts:
+    email:
+      enabled: false  # Configure SMTP settings when ready
+      smtp_server: ""
+      smtp_port: 587
+      username_env: "EMAIL_USERNAME"
+      password_env: "EMAIL_PASSWORD"
+      recipients:
+        - "alerts@yourcompany.com"
+        
+    telegram:
+      enabled: false  # Configure when ready
+      bot_token_env: "TELEGRAM_BOT_TOKEN"
+      chat_id_env: "TELEGRAM_CHAT_ID"
+      
+  thresholds:
+    profit_alert: 1000          # Alert when profit exceeds $1000
+    loss_alert: -500            # Alert when loss exceeds $500
+    unusual_activity: true      # Alert on unusual market activity
+
+# Security Settings
+security:
+  api_key_rotation: "monthly"   # Rotate API keys monthly
+  encryption_enabled: true
+  two_factor_auth: true
+  ip_whitelist: []              # Add your IPs for additional security
+  
+  rate_limiting:
+    requests_per_second: 10
+    burst_limit: 100
+    
+# Logging
+logging:
+  level: "INFO"                 # DEBUG, INFO, WARNING, ERROR
+  file_rotation: "daily"
+  max_log_files: 30
+  log_trades: true
+  log_performance: true
+  
+# Backup and Recovery
+backup:
+  enabled: true
+  frequency: "hourly"
+  retention_days: 30
+  destinations:
+    - "local"
+    - "cloud"  # Configure cloud storage when ready
+
+# Performance Optimization
+performance:
+  cpu_cores: 0                  # 0 = use all available cores
+  memory_limit: "8GB"
+  cache_size: "1GB"
+  
+  rust_engine:
+    enabled: true
+    optimization_level: "release"
+    parallel_processing: true
+    
+  database:
+    connection_pool_size: 20
+    query_timeout: 30           # seconds
+    batch_size: 1000
+
+# Development Settings (disable in production)
+development:
+  debug_mode: false
+  test_mode: false
+  simulation_only: false
+  mock_exchanges: false
+  
+# Compliance and Reporting
+compliance:
+  jurisdiction: "US"            # Adjust for your location
+  tax_reporting: true
+  trade_reporting: true
+  kyc_aml_compliance: true
+  
+  reporting:
+    daily_summary: true
+    weekly_analysis: true
+    monthly_report: true
+    tax_documents: true
+
