@@ -1,0 +1,148 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.24.xsd">
+
+    <changeSet id="002-create-exchanges-table" author="arbitrage-system">
+        <createTable tableName="exchanges">
+            <column name="id" type="UUID" defaultValueComputed="gen_random_uuid()">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="name" type="VARCHAR(100)">
+                <constraints nullable="false" unique="true"/>
+            </column>
+            <column name="api_endpoint" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="is_active" type="BOOLEAN" defaultValueBoolean="true">
+                <constraints nullable="false"/>
+            </column>
+            <column name="rate_limit" type="INTEGER" defaultValueNumeric="100">
+                <constraints nullable="false"/>
+            </column>
+            <column name="fee_percentage" type="DECIMAL(5,4)" defaultValueNumeric="0.001">
+                <constraints nullable="false"/>
+            </column>
+            <column name="created_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="updated_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+        
+        <rollback>
+            <dropTable tableName="exchanges"/>
+        </rollback>
+    </changeSet>
+
+    <changeSet id="002-create-trading-pairs-table" author="arbitrage-system">
+        <createTable tableName="trading_pairs">
+            <column name="id" type="UUID" defaultValueComputed="gen_random_uuid()">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="base_currency" type="VARCHAR(10)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="quote_currency" type="VARCHAR(10)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="symbol" type="VARCHAR(20)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="is_active" type="BOOLEAN" defaultValueBoolean="true">
+                <constraints nullable="false"/>
+            </column>
+            <column name="created_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+        
+        <addUniqueConstraint
+            tableName="trading_pairs"
+            columnNames="base_currency,quote_currency"
+            constraintName="uk_trading_pairs_currencies"/>
+        
+        <rollback>
+            <dropTable tableName="trading_pairs"/>
+        </rollback>
+    </changeSet>
+
+    <changeSet id="002-create-arbitrage-opportunities-table" author="arbitrage-system">
+        <createTable tableName="arbitrage_opportunities">
+            <column name="id" type="UUID" defaultValueComputed="gen_random_uuid()">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="trading_pair_id" type="UUID">
+                <constraints nullable="false"/>
+            </column>
+            <column name="buy_exchange_id" type="UUID">
+                <constraints nullable="false"/>
+            </column>
+            <column name="sell_exchange_id" type="UUID">
+                <constraints nullable="false"/>
+            </column>
+            <column name="buy_price" type="DECIMAL(20,8)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="sell_price" type="DECIMAL(20,8)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="profit_percentage" type="DECIMAL(10,6)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="volume" type="DECIMAL(20,8)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="status" type="VARCHAR(20)" defaultValue="DETECTED">
+                <constraints nullable="false"/>
+            </column>
+            <column name="detected_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="executed_at" type="TIMESTAMP">
+                <constraints nullable="true"/>
+            </column>
+            <column name="expires_at" type="TIMESTAMP">
+                <constraints nullable="true"/>
+            </column>
+        </createTable>
+        
+        <addForeignKeyConstraint
+            baseTableName="arbitrage_opportunities"
+            baseColumnNames="trading_pair_id"
+            referencedTableName="trading_pairs"
+            referencedColumnNames="id"
+            constraintName="fk_arbitrage_opportunities_trading_pair_id"/>
+        
+        <addForeignKeyConstraint
+            baseTableName="arbitrage_opportunities"
+            baseColumnNames="buy_exchange_id"
+            referencedTableName="exchanges"
+            referencedColumnNames="id"
+            constraintName="fk_arbitrage_opportunities_buy_exchange_id"/>
+        
+        <addForeignKeyConstraint
+            baseTableName="arbitrage_opportunities"
+            baseColumnNames="sell_exchange_id"
+            referencedTableName="exchanges"
+            referencedColumnNames="id"
+            constraintName="fk_arbitrage_opportunities_sell_exchange_id"/>
+        
+        <createIndex tableName="arbitrage_opportunities" indexName="idx_arbitrage_opportunities_detected_at">
+            <column name="detected_at"/>
+        </createIndex>
+        
+        <createIndex tableName="arbitrage_opportunities" indexName="idx_arbitrage_opportunities_status">
+            <column name="status"/>
+        </createIndex>
+        
+        <rollback>
+            <dropTable tableName="arbitrage_opportunities"/>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>
+

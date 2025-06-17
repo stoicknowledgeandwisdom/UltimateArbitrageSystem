@@ -1,0 +1,345 @@
+{
+  "errors": [],
+  "generated_at": "2025-06-17T18:04:24Z",
+  "metrics": {
+    ".\\security/credential_manager.py": {
+      "CONFIDENCE.HIGH": 0,
+      "CONFIDENCE.LOW": 0,
+      "CONFIDENCE.MEDIUM": 3,
+      "CONFIDENCE.UNDEFINED": 0,
+      "SEVERITY.HIGH": 0,
+      "SEVERITY.LOW": 3,
+      "SEVERITY.MEDIUM": 0,
+      "SEVERITY.UNDEFINED": 0,
+      "loc": 570,
+      "nosec": 0,
+      "skipped_tests": 0
+    },
+    ".\\src/core/arbitrage_core/trading_engine.py": {
+      "CONFIDENCE.HIGH": 0,
+      "CONFIDENCE.LOW": 0,
+      "CONFIDENCE.MEDIUM": 0,
+      "CONFIDENCE.UNDEFINED": 0,
+      "SEVERITY.HIGH": 0,
+      "SEVERITY.LOW": 0,
+      "SEVERITY.MEDIUM": 0,
+      "SEVERITY.UNDEFINED": 0,
+      "loc": 167,
+      "nosec": 0,
+      "skipped_tests": 0
+    },
+    ".\\ultimate_maximum_income_engine.py": {
+      "CONFIDENCE.HIGH": 10,
+      "CONFIDENCE.LOW": 0,
+      "CONFIDENCE.MEDIUM": 1,
+      "CONFIDENCE.UNDEFINED": 0,
+      "SEVERITY.HIGH": 0,
+      "SEVERITY.LOW": 10,
+      "SEVERITY.MEDIUM": 1,
+      "SEVERITY.UNDEFINED": 0,
+      "loc": 1011,
+      "nosec": 0,
+      "skipped_tests": 0
+    },
+    "_totals": {
+      "CONFIDENCE.HIGH": 10,
+      "CONFIDENCE.LOW": 0,
+      "CONFIDENCE.MEDIUM": 4,
+      "CONFIDENCE.UNDEFINED": 0,
+      "SEVERITY.HIGH": 0,
+      "SEVERITY.LOW": 13,
+      "SEVERITY.MEDIUM": 1,
+      "SEVERITY.UNDEFINED": 0,
+      "loc": 1748,
+      "nosec": 0,
+      "skipped_tests": 0
+    }
+  },
+  "results": [
+    {
+      "code": "56     API_KEY = \"api_key\"\n57     DATABASE_PASSWORD = \"database_password\"\n58     ENCRYPTION_KEY = \"encryption_key\"\n",
+      "col_offset": 24,
+      "end_col_offset": 43,
+      "filename": ".\\security/credential_manager.py",
+      "issue_confidence": "MEDIUM",
+      "issue_cwe": {
+        "id": 259,
+        "link": "https://cwe.mitre.org/data/definitions/259.html"
+      },
+      "issue_severity": "LOW",
+      "issue_text": "Possible hardcoded password: 'database_password'",
+      "line_number": 57,
+      "line_range": [
+        57
+      ],
+      "more_info": "https://bandit.readthedocs.io/en/1.8.5/plugins/b105_hardcoded_password_string.html",
+      "test_id": "B105",
+      "test_name": "hardcoded_password_string"
+    },
+    {
+      "code": "59     SIGNING_KEY = \"signing_key\"\n60     SESSION_TOKEN = \"session_token\"\n61     OAUTH_SECRET = \"oauth_secret\"\n",
+      "col_offset": 20,
+      "end_col_offset": 35,
+      "filename": ".\\security/credential_manager.py",
+      "issue_confidence": "MEDIUM",
+      "issue_cwe": {
+        "id": 259,
+        "link": "https://cwe.mitre.org/data/definitions/259.html"
+      },
+      "issue_severity": "LOW",
+      "issue_text": "Possible hardcoded password: 'session_token'",
+      "line_number": 60,
+      "line_range": [
+        60
+      ],
+      "more_info": "https://bandit.readthedocs.io/en/1.8.5/plugins/b105_hardcoded_password_string.html",
+      "test_id": "B105",
+      "test_name": "hardcoded_password_string"
+    },
+    {
+      "code": "60     SESSION_TOKEN = \"session_token\"\n61     OAUTH_SECRET = \"oauth_secret\"\n62     CERTIFICATE = \"certificate\"\n",
+      "col_offset": 19,
+      "end_col_offset": 33,
+      "filename": ".\\security/credential_manager.py",
+      "issue_confidence": "MEDIUM",
+      "issue_cwe": {
+        "id": 259,
+        "link": "https://cwe.mitre.org/data/definitions/259.html"
+      },
+      "issue_severity": "LOW",
+      "issue_text": "Possible hardcoded password: 'oauth_secret'",
+      "line_number": 61,
+      "line_range": [
+        61
+      ],
+      "more_info": "https://bandit.readthedocs.io/en/1.8.5/plugins/b105_hardcoded_password_string.html",
+      "test_id": "B105",
+      "test_name": "hardcoded_password_string"
+    },
+    {
+      "code": "426             # In production, this would connect to real exchange APIs\n427             base_price = random.uniform(1, 100000)\n428             spread = random.uniform(0.0001, 0.01)\n",
+      "col_offset": 25,
+      "end_col_offset": 50,
+      "filename": ".\\ultimate_maximum_income_engine.py",
+      "issue_confidence": "HIGH",
+      "issue_cwe": {
+        "id": 330,
+        "link": "https://cwe.mitre.org/data/definitions/330.html"
+      },
+      "issue_severity": "LOW",
+      "issue_text": "Standard pseudo-random generators are not suitable for security/cryptographic purposes.",
+      "line_number": 427,
+      "line_range": [
+        427
+      ],
+      "more_info": "https://bandit.readthedocs.io/en/1.8.5/blacklists/blacklist_calls.html#b311-random",
+      "test_id": "B311",
+      "test_name": "blacklist"
+    },
+    {
+      "code": "427             base_price = random.uniform(1, 100000)\n428             spread = random.uniform(0.0001, 0.01)\n429             \n",
+      "col_offset": 21,
+      "end_col_offset": 49,
+      "filename": ".\\ultimate_maximum_income_engine.py",
+      "issue_confidence": "HIGH",
+      "issue_cwe": {
+        "id": 330,
+        "link": "https://cwe.mitre.org/data/definitions/330.html"
+      },
+      "issue_severity": "LOW",
+      "issue_text": "Standard pseudo-random generators are not suitable for security/cryptographic purposes.",
+      "line_number": 428,
+      "line_range": [
+        428
+      ],
+      "more_info": "https://bandit.readthedocs.io/en/1.8.5/blacklists/blacklist_calls.html#b311-random",
+      "test_id": "B311",
+      "test_name": "blacklist"
+    },
+    {
+      "code": "431             ask = base_price * (1 + spread/2)\n432             volume_24h = random.uniform(1000000, 1000000000)\n433             volatility = random.uniform(1, 10)\n",
+      "col_offset": 25,
+      "end_col_offset": 60,
+      "filename": ".\\ultimate_maximum_income_engine.py",
+      "issue_confidence": "HIGH",
+      "issue_cwe": {
+        "id": 330,
+        "link": "https://cwe.mitre.org/data/definitions/330.html"
+      },
+      "issue_severity": "LOW",
+      "issue_text": "Standard pseudo-random generators are not suitable for security/cryptographic purposes.",
+      "line_number": 432,
+      "line_range": [
+        432
+      ],
+      "more_info": "https://bandit.readthedocs.io/en/1.8.5/blacklists/blacklist_calls.html#b311-random",
+      "test_id": "B311",
+      "test_name": "blacklist"
+    },
+    {
+      "code": "432             volume_24h = random.uniform(1000000, 1000000000)\n433             volatility = random.uniform(1, 10)\n434             \n",
+      "col_offset": 25,
+      "end_col_offset": 46,
+      "filename": ".\\ultimate_maximum_income_engine.py",
+      "issue_confidence": "HIGH",
+      "issue_cwe": {
+        "id": 330,
+        "link": "https://cwe.mitre.org/data/definitions/330.html"
+      },
+      "issue_severity": "LOW",
+      "issue_text": "Standard pseudo-random generators are not suitable for security/cryptographic purposes.",
+      "line_number": 433,
+      "line_range": [
+        433
+      ],
+      "more_info": "https://bandit.readthedocs.io/en/1.8.5/blacklists/blacklist_calls.html#b311-random",
+      "test_id": "B311",
+      "test_name": "blacklist"
+    },
+    {
+      "code": "445                 'timestamp': datetime.now().isoformat(),\n446                 'quality_score': random.uniform(0.5, 1.0)\n447             }\n",
+      "col_offset": 33,
+      "end_col_offset": 57,
+      "filename": ".\\ultimate_maximum_income_engine.py",
+      "issue_confidence": "HIGH",
+      "issue_cwe": {
+        "id": 330,
+        "link": "https://cwe.mitre.org/data/definitions/330.html"
+      },
+      "issue_severity": "LOW",
+      "issue_text": "Standard pseudo-random generators are not suitable for security/cryptographic purposes.",
+      "line_number": 446,
+      "line_range": [
+        446
+      ],
+      "more_info": "https://bandit.readthedocs.io/en/1.8.5/blacklists/blacklist_calls.html#b311-random",
+      "test_id": "B311",
+      "test_name": "blacklist"
+    },
+    {
+      "code": "536                                 confidence=confidence,\n537                                 execution_time=random.uniform(1, 5),\n538                                 risk_score=self.calculate_risk_score(buy_data, sell_data),\n",
+      "col_offset": 47,
+      "end_col_offset": 67,
+      "filename": ".\\ultimate_maximum_income_engine.py",
+      "issue_confidence": "HIGH",
+      "issue_cwe": {
+        "id": 330,
+        "link": "https://cwe.mitre.org/data/definitions/330.html"
+      },
+      "issue_severity": "LOW",
+      "issue_text": "Standard pseudo-random generators are not suitable for security/cryptographic purposes.",
+      "line_number": 537,
+      "line_range": [
+        537
+      ],
+      "more_info": "https://bandit.readthedocs.io/en/1.8.5/blacklists/blacklist_calls.html#b311-random",
+      "test_id": "B311",
+      "test_name": "blacklist"
+    },
+    {
+      "code": "883             # Simulate trade execution\n884             execution_time = random.uniform(0.5, 3.0)\n885             await asyncio.sleep(execution_time)\n",
+      "col_offset": 29,
+      "end_col_offset": 53,
+      "filename": ".\\ultimate_maximum_income_engine.py",
+      "issue_confidence": "HIGH",
+      "issue_cwe": {
+        "id": 330,
+        "link": "https://cwe.mitre.org/data/definitions/330.html"
+      },
+      "issue_severity": "LOW",
+      "issue_text": "Standard pseudo-random generators are not suitable for security/cryptographic purposes.",
+      "line_number": 884,
+      "line_range": [
+        884
+      ],
+      "more_info": "https://bandit.readthedocs.io/en/1.8.5/blacklists/blacklist_calls.html#b311-random",
+      "test_id": "B311",
+      "test_name": "blacklist"
+    },
+    {
+      "code": "887             # Simulate slippage and fees\n888             slippage = random.uniform(0.0001, 0.001)\n889             total_fees = self.exchanges[opp.buy_exchange]['fee'] + self.exchanges[opp.sell_exchange]['fee']\n",
+      "col_offset": 23,
+      "end_col_offset": 52,
+      "filename": ".\\ultimate_maximum_income_engine.py",
+      "issue_confidence": "HIGH",
+      "issue_cwe": {
+        "id": 330,
+        "link": "https://cwe.mitre.org/data/definitions/330.html"
+      },
+      "issue_severity": "LOW",
+      "issue_text": "Standard pseudo-random generators are not suitable for security/cryptographic purposes.",
+      "line_number": 888,
+      "line_range": [
+        888
+      ],
+      "more_info": "https://bandit.readthedocs.io/en/1.8.5/blacklists/blacklist_calls.html#b311-random",
+      "test_id": "B311",
+      "test_name": "blacklist"
+    },
+    {
+      "code": "895             # Simulate execution success (95% success rate)\n896             success = random.random() > 0.05\n897             \n",
+      "col_offset": 22,
+      "end_col_offset": 37,
+      "filename": ".\\ultimate_maximum_income_engine.py",
+      "issue_confidence": "HIGH",
+      "issue_cwe": {
+        "id": 330,
+        "link": "https://cwe.mitre.org/data/definitions/330.html"
+      },
+      "issue_severity": "LOW",
+      "issue_text": "Standard pseudo-random generators are not suitable for security/cryptographic purposes.",
+      "line_number": 896,
+      "line_range": [
+        896
+      ],
+      "more_info": "https://bandit.readthedocs.io/en/1.8.5/blacklists/blacklist_calls.html#b311-random",
+      "test_id": "B311",
+      "test_name": "blacklist"
+    },
+    {
+      "code": "1111                             old_price = self.market_data[key]['price']\n1112                             price_change = random.uniform(-0.01, 0.01)  # \u00b11% movement\n1113                             new_price = old_price * (1 + price_change)\n",
+      "col_offset": 43,
+      "end_col_offset": 70,
+      "filename": ".\\ultimate_maximum_income_engine.py",
+      "issue_confidence": "HIGH",
+      "issue_cwe": {
+        "id": 330,
+        "link": "https://cwe.mitre.org/data/definitions/330.html"
+      },
+      "issue_severity": "LOW",
+      "issue_text": "Standard pseudo-random generators are not suitable for security/cryptographic purposes.",
+      "line_number": 1112,
+      "line_range": [
+        1112
+      ],
+      "more_info": "https://bandit.readthedocs.io/en/1.8.5/blacklists/blacklist_calls.html#b311-random",
+      "test_id": "B311",
+      "test_name": "blacklist"
+    },
+    {
+      "code": "1162         cursor = self.db_connection.cursor()\n1163         cursor.execute('''\n1164             SELECT execution_profit FROM maximum_income_opportunities \n1165             WHERE executed = TRUE \n1166             AND timestamp > datetime('now', '-{} hours')\n1167             ORDER BY timestamp\n1168         '''.format(hours))\n1169         \n",
+      "col_offset": 23,
+      "end_col_offset": 11,
+      "filename": ".\\ultimate_maximum_income_engine.py",
+      "issue_confidence": "MEDIUM",
+      "issue_cwe": {
+        "id": 89,
+        "link": "https://cwe.mitre.org/data/definitions/89.html"
+      },
+      "issue_severity": "MEDIUM",
+      "issue_text": "Possible SQL injection vector through string-based query construction.",
+      "line_number": 1163,
+      "line_range": [
+        1163,
+        1164,
+        1165,
+        1166,
+        1167,
+        1168
+      ],
+      "more_info": "https://bandit.readthedocs.io/en/1.8.5/plugins/b608_hardcoded_sql_expressions.html",
+      "test_id": "B608",
+      "test_name": "hardcoded_sql_expressions"
+    }
+  ]
+}

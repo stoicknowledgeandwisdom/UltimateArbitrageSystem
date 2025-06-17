@@ -1,0 +1,17 @@
+{
+  "quantum_enabled": true,
+  "ai_enhancement": true,
+  "risk_tolerance": 0.15,
+  "target_return": 0.12,
+  "rebalance_frequency": "daily",
+  "use_black_litterman": true,
+  "use_regime_detection": true,
+  "use_factor_models": true,
+  "dynamic_constraints": true,
+  "max_weight": 0.4,
+  "min_weight": 0.01,
+  "transaction_cost": 0.001,
+  "optimization_method": "quantum_enhanced",
+  "risk_model": "factor_based",
+  "return_model": "ml_enhanced"
+}

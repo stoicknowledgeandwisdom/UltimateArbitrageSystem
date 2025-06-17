@@ -1,0 +1,27 @@
+{
+  "binance": {
+    "api_key": "",
+    "api_secret": "",
+    "testnet": true,
+    "trading_enabled": false,
+    "symbols": [
+      "BTC/USDT",
+      "ETH/USDT",
+      "ADA/USDT",
+      "DOT/USDT"
+    ]
+  },
+  "coinbase": {
+    "api_key": "",
+    "api_secret": "",
+    "passphrase": "",
+    "sandbox": true,
+    "trading_enabled": false,
+    "symbols": [
+      "BTC-USD",
+      "ETH-USD",
+      "ADA-USD",
+      "DOT-USD"
+    ]
+  }
+}

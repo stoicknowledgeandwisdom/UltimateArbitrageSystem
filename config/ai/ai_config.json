@@ -1,0 +1,38 @@
+{
+  "models": {
+    "decision_model": {
+      "type": "neural_network",
+      "input_size": 100,
+      "hidden_layers": [
+        256,
+        128,
+        64
+      ],
+      "output_size": 10,
+      "activation": "relu",
+      "dropout": 0.2
+    },
+    "risk_model": {
+      "type": "ensemble",
+      "models": [
+        "random_forest",
+        "gradient_boosting",
+        "neural_network"
+      ],
+      "voting": "soft"
+    },
+    "quantum_model": {
+      "qubits": 50,
+      "circuit_depth": 10,
+      "optimization_rounds": 100,
+      "backend": "qasm_simulator"
+    }
+  },
+  "training": {
+    "batch_size": 32,
+    "epochs": 100,
+    "learning_rate": 0.001,
+    "validation_split": 0.2,
+    "early_stopping": true
+  }
+}
