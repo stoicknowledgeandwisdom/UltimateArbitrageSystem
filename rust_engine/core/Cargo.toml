@@ -1,0 +1,72 @@
+[package]
+name = "ultimate-core"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Ultra-High-Frequency Core Trading Engine"
+
+[dependencies]
+# Workspace dependencies
+tokio.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+anyhow.workspace = true
+log.workspace = true
+chrono.workspace = true
+uuid.workspace = true
+
+# Performance dependencies
+rayon.workspace = true
+crossbeam.workspace = true
+dashmap.workspace = true
+parking_lot.workspace = true
+atomic.workspace = true
+simd-json.workspace = true
+
+# Memory management
+memmap2.workspace = true
+jemallocator.workspace = true
+bumpalo.workspace = true
+
+# Additional core-specific dependencies
+rustc-hash = "1.1"          # Fast hash functions
+fxhash = "0.2"              # Faster hashing
+smallvec = "1.11"           # Stack-allocated vectors
+tinyvec = "1.6"             # Tiny vectors
+heapless = { version = "0.8", optional = true }  # No-allocation data structures
+nohash-hasher = "0.2"       # No-hash hasher for integer keys
+byteorder = "1.5"           # Byte order utilities
+zerocopy = "0.7"            # Zero-copy parsing
+
+# SIMD and vectorization
+wide = { version = "0.7", optional = true }      # SIMD operations
+simba = { version = "0.8", optional = true }     # SIMD abstractions
+
+# Time and precision
+instant = "0.1"             # High-precision timing
+quanta = "0.12"             # High-resolution time measurement
+
+[dev-dependencies]
+criterion.workspace = true
+proptest.workspace = true
+quickcheck.workspace = true
+
+[features]
+default = ["std", "jemalloc"]
+std = []
+jemalloc = ["jemallocator"]
+simd = ["wide", "simba"]
+no-std = ["heapless"]
+fpga = []                   # FPGA acceleration support
+
+# Global allocator for maximum performance
+[target.'cfg(not(target_env = "msvc"))'.dependencies]
+jemallocator = { workspace = true, optional = true }
+
+[lib]
+name = "ultimate_core"
+crate-type = ["rlib", "cdylib"]
+

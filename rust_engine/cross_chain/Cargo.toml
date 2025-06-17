@@ -1,0 +1,28 @@
+[package]
+name = "ultimate-cross-chain"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Cross-chain arbitrage and bridge optimization"
+
+[dependencies]
+# Workspace dependencies
+ultimate-core = { path = "../core" }
+tokio.workspace = true
+serde.workspace = true
+log.workspace = true
+thiserror.workspace = true
+anyhow.workspace = true
+
+# Blockchain dependencies
+secp256k1.workspace = true
+k256.workspace = true
+sha2.workspace = true
+blake3.workspace = true
+
+[lib]
+name = "ultimate_cross_chain"
+crate-type = ["rlib"]
+

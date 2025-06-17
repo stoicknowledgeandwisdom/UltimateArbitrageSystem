@@ -1,0 +1,29 @@
+[package]
+name = "ultimate-fpga"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "FPGA acceleration layer for Ultimate Trading Engine"
+
+[dependencies]
+# Workspace dependencies
+ultimate-core = { path = "../core" }
+log.workspace = true
+thiserror.workspace = true
+anyhow.workspace = true
+
+# FPGA-specific dependencies
+libc.workspace = true
+memfd.workspace = true
+
+[features]
+default = []
+hardware = []  # Enable actual hardware acceleration
+simulation = []  # Enable FPGA simulation mode
+
+[lib]
+name = "ultimate_fpga"
+crate-type = ["rlib"]
+

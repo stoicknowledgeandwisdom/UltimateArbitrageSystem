@@ -1,0 +1,36 @@
+[build-system]
+requires = ["maturin>=1.0,<2.0"]
+build-backend = "maturin"
+
+[project]
+name = "ultimate-rust-engine"
+version = "2.0.0"
+description = "Ultra-High-Frequency Trading Engine with FPGA Support"
+authors = [{name = "Ultimate Arbitrage System"}]
+license = {text = "MIT"}
+requires-python = ">=3.8"
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Intended Audience :: Financial and Insurance Industry",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Rust",
+    "Topic :: Office/Business :: Financial",
+]
+dependencies = [
+    "numpy>=1.20.0",
+]
+
+[project.urls]
+Repository = "https://github.com/ultimate-arbitrage/rust-engine"
+
+[tool.maturin]
+module-name = "ultimate_rust_engine"
+python-source = "python"
+features = ["pyo3/extension-module"]
+

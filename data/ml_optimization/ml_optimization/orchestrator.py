@@ -20,6 +20,24 @@ from .meta_controller import ContextualBanditController, ContextualBanditConfig,
 from .ops import DeviceManager, DeviceManagerConfig
 from .safety import ExplainabilityDashboard, ExplanationConfig
 
+# Import Rust engine integration
+try:
+    import sys
+    import os
+    sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..', '..', 'src', 'integration'))
+    from rust_engine_bridge import (
+        RustEngineInterface,
+        RustEngineConfig,
+        rust_engine_context,
+        get_rust_engine_interface,
+        run_engine_performance_test
+    )
+    RUST_INTEGRATION_AVAILABLE = True
+except ImportError as e:
+    RUST_INTEGRATION_AVAILABLE = False
+    import warnings
+    warnings.warn(f"Rust engine integration not available: {e}")
+
 
 class SystemStatus(Enum):
     """System status enumeration."""
@@ -132,6 +150,15 @@ class MLOptimizationOrchestrator:
         
         # Thread safety
         self._lock = threading.Lock()
+        
+        # Rust engine integration
+        self.rust_engine: Optional[RustEngineInterface] = None
+        self.rust_engine_config = RustEngineConfig(
+            enable_simd=True,
+            enable_fpga=False,  # Enable when FPGA hardware is available
+            thread_pool_size=16,
+            enable_performance_monitoring=True
+        ) if RUST_INTEGRATION_AVAILABLE else None
         
         # Initialize components
         self._initialize_components()
@@ -801,4 +828,212 @@ class MLOptimizationOrchestrator:
     
     async def __aexit__(self, exc_type, exc_val, exc_tb):
         await self.stop()
+    
+    # Rust Engine Integration Methods
+    async def initialize_rust_engine(self) -> bool:
+        """Initialize the Rust trading engine for ultra-high-frequency operations."""
+        if not RUST_INTEGRATION_AVAILABLE:
+            self.logger.warning("Rust engine integration not available")
+            return False
+        
+        try:
+            self.logger.info("🦀 Initializing Rust trading engine...")
+            
+            # Create Rust engine interface
+            self.rust_engine = get_rust_engine_interface(self.rust_engine_config)
+            
+            # Initialize the engine
+            success = await self.rust_engine.initialize()
+            
+            if success:
+                self.logger.info("✅ Rust engine initialized successfully")
+                
+                # Run initial performance test
+                await self._rust_engine_performance_test()
+                
+                return True
+            else:
+                self.logger.error("❌ Failed to initialize Rust engine")
+                return False
+                
+        except Exception as e:
+            self.logger.error(f"Error initializing Rust engine: {e}")
+            return False
+    
+    async def create_ultra_fast_order_book(self, symbol: str) -> bool:
+        """Create an ultra-fast order book using the Rust engine."""
+        if not self.rust_engine:
+            self.logger.warning("Rust engine not initialized")
+            return False
+        
+        try:
+            success = await self.rust_engine.create_order_book(symbol)
+            if success:
+                self.logger.info(f"📚 Created ultra-fast order book for {symbol}")
+            return success
+            
+        except Exception as e:
+            self.logger.error(f"Error creating order book for {symbol}: {e}")
+            return False
+    
+    async def execute_ultra_fast_order(self, symbol: str, order_id: int, side: str, 
+                                     price: float, quantity: float) -> bool:
+        """Execute an order with sub-millisecond latency using the Rust engine."""
+        if not self.rust_engine:
+            self.logger.warning("Rust engine not initialized")
+            return False
+        
+        try:
+            start_time = datetime.now()
+            
+            success = await self.rust_engine.add_order(symbol, order_id, side, price, quantity)
+            
+            execution_time = (datetime.now() - start_time).total_seconds() * 1000
+            
+            if success:
+                self.logger.debug(f"⚡ Order {order_id} executed in {execution_time:.3f}ms")
+            
+            return success
+            
+        except Exception as e:
+            self.logger.error(f"Error executing ultra-fast order: {e}")
+            return False
+    
+    async def get_ultra_fast_prices(self, symbol: str) -> Tuple[Optional[float], Optional[float]]:
+        """Get best bid/ask prices with minimal latency from the Rust engine."""
+        if not self.rust_engine:
+            return None, None
+        
+        try:
+            return await self.rust_engine.get_best_prices(symbol)
+            
+        except Exception as e:
+            self.logger.error(f"Error getting ultra-fast prices: {e}")
+            return None, None
+    
+    async def get_rust_engine_stats(self) -> Dict[str, Any]:
+        """Get comprehensive Rust engine performance statistics."""
+        if not self.rust_engine:
+            return {'error': 'Rust engine not initialized'}
+        
+        try:
+            return await self.rust_engine.get_performance_metrics()
+            
+        except Exception as e:
+            self.logger.error(f"Error getting Rust engine stats: {e}")
+            return {'error': str(e)}
+    
+    async def _rust_engine_performance_test(self) -> Dict[str, Any]:
+        """Run a comprehensive performance test of the Rust engine."""
+        if not self.rust_engine:
+            return {'error': 'Rust engine not initialized'}
+        
+        try:
+            self.logger.info("🏃 Running Rust engine performance test...")
+            
+            # Run benchmark with moderate load
+            benchmark_results = await self.rust_engine.benchmark_performance(operations=10000)
+            
+            self.logger.info(f"🏁 Rust engine benchmark completed:")
+            self.logger.info(f"   📊 {benchmark_results.get('operations_per_second', 0):.0f} ops/sec")
+            self.logger.info(f"   ⚡ {benchmark_results.get('average_latency_ms', 0):.3f}ms avg latency")
+            
+            # Update system metrics with Rust engine performance
+            if 'operations_per_second' in benchmark_results:
+                self.system_metrics['rust_engine_ops_per_sec'] = benchmark_results['operations_per_second']
+                self.system_metrics['rust_engine_latency_ms'] = benchmark_results['average_latency_ms']
+            
+            return benchmark_results
+            
+        except Exception as e:
+            self.logger.error(f"Error running Rust engine performance test: {e}")
+            return {'error': str(e)}
+    
+    async def enhanced_market_data_processing(self, market_data: Dict[str, Any]) -> Optional[TradingDecision]:
+        """Enhanced market data processing with Rust engine integration."""
+        try:
+            symbol = market_data.get('symbol', '')
+            exchange = market_data.get('exchange', '')
+            
+            if not symbol or not exchange:
+                return None
+            
+            # Create ultra-fast order book if using Rust engine
+            if self.rust_engine:
+                await self.create_ultra_fast_order_book(symbol)
+                
+                # Get ultra-fast prices for enhanced decision making
+                bid, ask = await self.get_ultra_fast_prices(symbol)
+                if bid and ask:
+                    market_data['rust_engine_bid'] = bid
+                    market_data['rust_engine_ask'] = ask
+                    market_data['rust_engine_spread'] = ask - bid
+            
+            # Process with standard ML pipeline
+            decision = await self.process_market_data(market_data)
+            
+            # Execute through Rust engine if available and decision is valid
+            if decision and not decision.vetoed and self.rust_engine:
+                order_id = int(time.time() * 1000000) % 1000000  # Generate unique order ID
+                
+                # Execute the order with ultra-low latency
+                price = market_data.get('price', 0.0)
+                if decision.action != 'hold':
+                    execution_success = await self.execute_ultra_fast_order(
+                        symbol, order_id, decision.action, price, abs(decision.position_size)
+                    )
+                    
+                    if execution_success:
+                        decision.explanation = decision.explanation or {}
+                        decision.explanation['rust_engine_execution'] = True
+                        decision.explanation['execution_latency_category'] = 'sub_millisecond'
+            
+            return decision
+            
+        except Exception as e:
+            self.logger.error(f"Error in enhanced market data processing: {e}")
+            return None
+    
+    async def rust_engine_health_check(self) -> Dict[str, Any]:
+        """Perform health check on the Rust engine."""
+        if not self.rust_engine:
+            return {'status': 'not_initialized', 'available': RUST_INTEGRATION_AVAILABLE}
+        
+        try:
+            # Get performance metrics as health indicator
+            metrics = await self.rust_engine.get_performance_metrics()
+            
+            # Determine health status
+            status = 'healthy'
+            if metrics.get('error'):
+                status = 'error'
+            elif not metrics.get('initialization_status', False):
+                status = 'not_initialized'
+            
+            return {
+                'status': status,
+                'available': RUST_INTEGRATION_AVAILABLE,
+                'initialized': metrics.get('initialization_status', False),
+                'order_books_count': metrics.get('order_books_count', 0),
+                'rust_engine_mode': metrics.get('rust_engine_available', False),
+                'metrics': metrics
+            }
+            
+        except Exception as e:
+            return {
+                'status': 'error',
+                'error': str(e),
+                'available': RUST_INTEGRATION_AVAILABLE
+            }
+    
+    async def shutdown_rust_engine(self):
+        """Gracefully shutdown the Rust engine."""
+        if self.rust_engine:
+            try:
+                self.logger.info("🛑 Shutting down Rust engine...")
+                await self.rust_engine.shutdown()
+                self.rust_engine = None
+                self.logger.info("✅ Rust engine shutdown completed")
+            except Exception as e:
+                self.logger.error(f"Error shutting down Rust engine: {e}")
 

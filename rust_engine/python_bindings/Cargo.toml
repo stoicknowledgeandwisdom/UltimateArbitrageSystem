@@ -1,0 +1,27 @@
+[package]
+name = "ultimate-python-bindings"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Python bindings for Ultimate Core Trading Engine"
+
+[lib]
+name = "ultimate_rust_engine"
+crate-type = ["cdylib"]
+
+[dependencies]
+# Workspace dependencies
+ultimate-core = { path = "../core" }
+pyo3.workspace = true
+numpy.workspace = true
+tokio.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+anyhow.workspace = true
+
+[features]
+default = ["extension-module"]
+extension-module = ["pyo3/extension-module"]
+

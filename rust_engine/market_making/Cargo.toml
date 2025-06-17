@@ -1,0 +1,22 @@
+[package]
+name = "ultimate-market-making"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Advanced market making strategies for Ultimate Trading Engine"
+
+[dependencies]
+# Workspace dependencies
+ultimate-core = { path = "../core" }
+tokio.workspace = true
+serde.workspace = true
+log.workspace = true
+thiserror.workspace = true
+anyhow.workspace = true
+
+[lib]
+name = "ultimate_market_making"
+crate-type = ["rlib"]
+
